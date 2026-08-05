@@ -1,1 +1,39 @@
-import {Package,ShoppingCart,Users,TrendingUp,Plus,Search,MoreHorizontal} from 'lucide-react';import {products,money} from '@/lib/data';export default function Admin(){return <main className="min-h-screen bg-slate-100"><div className="bg-[#04294f] text-white"><div className="container py-5 flex justify-between"><b className="text-xl">HINH ADMIN</b><span>Quản trị viên ▾</span></div></div><div className="container py-8"><div className="flex justify-between"><div><h1 className="text-3xl font-black">Tổng quan cửa hàng</h1><p className="text-gray-500">Dữ liệu quản trị minh họa</p></div><button className="btn btn-blue"><Plus/>Thêm sản phẩm</button></div><div className="grid md:grid-cols-4 gap-4 mt-6">{[[TrendingUp,'Doanh thu tháng','186.500.000₫'],[ShoppingCart,'Đơn hàng','128'],[Package,'Sản phẩm','24'],[Users,'Khách hàng','94']].map(([I,t,v])=>{const Icon=I as typeof Package;return <div className="card p-5" key={t as string}><Icon className="text-[#073b78]"/><span className="text-gray-500 block mt-3">{t as string}</span><b className="text-2xl">{v as string}</b></div>})}</div><section className="card mt-6 overflow-hidden"><div className="p-5 flex justify-between items-center"><h2 className="text-xl font-bold">Quản lý sản phẩm</h2><div className="border rounded-lg p-2 flex gap-2"><Search size={18}/><input className="outline-none" placeholder="Tìm sản phẩm"/></div></div><div className="overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-50"><tr>{['Sản phẩm','Mã','Thương hiệu','Giá bán','Tồn kho','Trạng thái',''].map(x=><th className="p-4 text-sm" key={x}>{x}</th>)}</tr></thead><tbody>{products.slice(0,8).map(p=><tr className="border-t" key={p.id}><td className="p-4 font-semibold">{p.name}</td><td>{p.sku}</td><td>{p.brand}</td><td className="text-red-600 font-bold">{money(p.salePrice)}</td><td>{p.stock}</td><td><span className="bg-green-100 text-green-700 rounded-full px-2 py-1 text-xs">Đang hiển thị</span></td><td><MoreHorizontal/></td></tr>)}</tbody></table></div></section></div></main>}
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { initializeDefaultCategories } from "@/lib/categories";
+import CategoryManager from "./category-manager";
+import ProductManager from "./product-manager";
+
+export const metadata: Metadata = { title: "Quản lý danh mục" };
+export const dynamic = "force-dynamic";
+
+export default async function AdminPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/dang-nhap?next=/admin");
+  if (user.role !== "ADMIN") redirect("/");
+
+  await initializeDefaultCategories();
+  const [categories, products] = await Promise.all([
+    prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, slug: true, description: true, _count: { select: { products: true } } } }),
+    prisma.product.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, slug: true, sku: true, salePrice: true, price: true, stock: true, visible: true, shortDescription: true, description: true, categoryId: true, category: { select: { name: true } }, brand: { select: { name: true } }, images: { orderBy: { position: "asc" }, select: { url: true } }, specifications: { select: { name: true, value: true } } } }),
+  ]);
+
+  return (
+    <main className="min-h-[70vh] bg-slate-100 py-8">
+      <div className="container">
+        <div className="mb-7">
+          <p className="text-sm font-semibold text-[#073b78]">HINH ADMIN</p>
+          <h1 className="mt-1 text-3xl font-black">Quản lý danh mục sản phẩm</h1>
+          <p className="mt-2 text-gray-500">Thêm, chỉnh sửa và xóa nhóm sản phẩm hiển thị trên cửa hàng.</p>
+        </div>
+        <ProductManager categories={categories.map(({ id, name }) => ({ id, name }))} products={products.map(product => ({ id: product.id, name: product.name, slug: product.slug, sku: product.sku, category: product.category.name, categoryId: product.categoryId, brand: product.brand.name, price: Number(product.price), salePrice: Number(product.salePrice ?? product.price), stock: product.stock, visible: product.visible, shortDescription: product.shortDescription ?? "", description: product.description ?? "", specifications: product.specifications.map(item => `${item.name}: ${item.value}`).join("\n"), images: product.images.map(image => image.url) }))}/>
+        <CategoryManager categories={categories.map((category) => ({
+          ...category,
+          productCount: category._count.products,
+        }))} />
+      </div>
+    </main>
+  );
+}
