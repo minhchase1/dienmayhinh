@@ -47,9 +47,9 @@ export default function Home() {
           </div>
           <div className="relative">
             <div className="absolute -inset-8 bg-blue-300/20 blur-3xl rounded-full" />
-            <div className="relative aspect-[3/2] overflow-hidden rounded-3xl border-4 border-white/20 shadow-2xl">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl border-4 border-white/20 shadow-2xl">
               <Image
-                src="/cua-hang-dien-may-hinh.png"
+                src="/mat-tien-dien-may-hinh-moi.png"
                 alt="Mặt tiền cửa hàng Điện máy Hinh tại Bình Sơn, Quảng Ngãi"
                 fill
                 priority

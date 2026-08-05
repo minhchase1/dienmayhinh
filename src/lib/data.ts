@@ -1,4 +1,4 @@
-export type Product={id:number;name:string;slug:string;sku:string;category:string;brand:string;price:number;salePrice:number;stock:number;image:string;badge:string;rating:number;reviews:number;warranty:string;description:string;specs:Record<string,string>};
+export type Product={id:number|string;name:string;slug:string;sku:string;category:string;brand:string;price:number;salePrice:number;stock:number;image:string;images?:string[];badge:string;rating:number;reviews:number;warranty:string;description:string;specs:Record<string,string>};
 const names=[
 ['Máy lạnh Daikin Inverter 1 HP','may-lanh','Daikin',10990000,8990000,'12000 BTU'],['Máy lạnh Panasonic Inverter 1.5 HP','may-lanh','Panasonic',13990000,11790000,'18000 BTU'],['Máy lạnh Casper Eco 1 HP','may-lanh','Casper',8990000,6490000,'9000 BTU'],
 ['Tủ lạnh Samsung Inverter 236 lít','tu-lanh','Samsung',10990000,8790000,'236 lít'],['Tủ lạnh LG InstaView 474 lít','tu-lanh','LG',32990000,27990000,'474 lít'],['Tủ lạnh Aqua Inverter 344 lít','tu-lanh','Aqua',13990000,11490000,'344 lít'],
