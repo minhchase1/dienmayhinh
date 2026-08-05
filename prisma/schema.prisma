@@ -1,0 +1,19 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+enum OrderStatus { PENDING CONFIRMED PREPARING SHIPPING COMPLETED CANCELLED }
+model User { id String @id @default(cuid()) email String @unique passwordHash String role String @default("ADMIN") createdAt DateTime @default(now()) }
+model Category { id String @id @default(cuid()) name String slug String @unique description String? products Product[] }
+model Brand { id String @id @default(cuid()) name String slug String @unique products Product[] }
+model Product { id String @id @default(cuid()) name String slug String @unique sku String @unique price Decimal @db.Decimal(12,0) salePrice Decimal? @db.Decimal(12,0) stock Int @default(0) shortDescription String? description String? visible Boolean @default(true) categoryId String brandId String category Category @relation(fields:[categoryId],references:[id]) brand Brand @relation(fields:[brandId],references:[id]) images ProductImage[] specifications ProductSpecification[] reviews Review[] orderItems OrderItem[] createdAt DateTime @default(now()) }
+model ProductImage { id String @id @default(cuid()) url String alt String? position Int @default(0) productId String product Product @relation(fields:[productId],references:[id],onDelete:Cascade) }
+model ProductSpecification { id String @id @default(cuid()) name String value String productId String product Product @relation(fields:[productId],references:[id],onDelete:Cascade) }
+model Customer { id String @id @default(cuid()) name String phone String email String? orders Order[] reviews Review[] createdAt DateTime @default(now()) }
+model Order { id String @id @default(cuid()) code String @unique customerId String customer Customer @relation(fields:[customerId],references:[id]) status OrderStatus @default(PENDING) total Decimal @db.Decimal(12,0) address String note String? paymentMethod String installation Boolean @default(false) items OrderItem[] createdAt DateTime @default(now()) }
+model OrderItem { id String @id @default(cuid()) orderId String productId String quantity Int unitPrice Decimal @db.Decimal(12,0) order Order @relation(fields:[orderId],references:[id],onDelete:Cascade) product Product @relation(fields:[productId],references:[id]) }
+model Review { id String @id @default(cuid()) rating Int content String? approved Boolean @default(false) productId String customerId String product Product @relation(fields:[productId],references:[id]) customer Customer @relation(fields:[customerId],references:[id]) }
+model Promotion { id String @id @default(cuid()) name String code String? discount Decimal @db.Decimal(12,0) startsAt DateTime endsAt DateTime active Boolean @default(true) }
+model Banner { id String @id @default(cuid()) title String imageUrl String link String? position Int @default(0) active Boolean @default(true) }
+model Article { id String @id @default(cuid()) title String slug String @unique excerpt String? content String coverUrl String? published Boolean @default(false) createdAt DateTime @default(now()) }
+model StoreSetting { id String @id @default(cuid()) key String @unique value String }
+model Cart { id String @id @default(cuid()) sessionId String @unique items CartItem[] updatedAt DateTime @updatedAt }
+model CartItem { id String @id @default(cuid()) cartId String productId String quantity Int cart Cart @relation(fields:[cartId],references:[id],onDelete:Cascade) }

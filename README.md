@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Điện máy Hinh
 
-## Getting Started
+Website bán hàng điện máy, điện lạnh bằng Next.js, TypeScript và Tailwind CSS. Bản demo có 24 sản phẩm minh họa, giỏ hàng lưu trên trình duyệt và quy trình đặt hàng mô phỏng nên chạy được ngay cả khi chưa cấu hình dịch vụ ngoài.
 
-First, run the development server:
+## Chạy nhanh
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở `http://localhost:3000`. Dashboard mẫu ở `/admin`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Biến môi trường và PostgreSQL
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Sao chép `.env.example` thành `.env`, cập nhật `DATABASE_URL` và `AUTH_SECRET`. Tạo database PostgreSQL rồi chạy:
 
-## Learn More
+```bash
+npx prisma generate
+npx prisma migrate dev --name init
+```
 
-To learn more about Next.js, take a look at the following resources:
+Schema nằm tại `prisma/schema.prisma`. Dữ liệu giao diện hiện nằm tại `src/lib/data.ts`; khi tích hợp thật, thay lớp dữ liệu này bằng Prisma queries. Mật khẩu quản trị phải được băm bằng bcrypt/argon2, không lưu văn bản thuần. Dùng Auth.js credentials hoặc OAuth và middleware kiểm tra vai trò `ADMIN` cho `/admin`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Hình ảnh và dịch vụ ngoài
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Ảnh demo dùng Unsplash. Khi vận hành, cấu hình Cloudinary bằng các biến trong `.env.example`, lưu URL ảnh vào `ProductImage`. Form đặt hàng hiện mô phỏng phía trình duyệt; production cần API route kiểm tra Zod, lấy lại giá từ database trong transaction, tạo `Order`/`OrderItem`, không tin giá gửi từ client.
 
-## Deploy on Vercel
+## Kiến trúc
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `src/app`: route storefront, checkout, chính sách và admin.
+- `src/components`: header, footer, product card, cart provider.
+- `src/lib/data.ts`: 24 sản phẩm demo và danh mục.
+- `prisma/schema.prisma`: các model dữ liệu chính.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Sitemap và robots được tạo bởi `src/app/sitemap.ts` và `robots.ts`. Metadata mặc định nằm trong layout; nên thêm metadata động theo dữ liệu database cho từng sản phẩm khi triển khai.
+
+## Tài khoản quản trị
+
+Sau khi nối Auth.js, tạo script seed dùng mật khẩu lấy từ biến môi trường, băm trước khi lưu. Tuyệt đối không commit mật khẩu hoặc `.env`.
+
+## Triển khai
+
+1. Đẩy mã nguồn lên GitHub.
+2. Tạo PostgreSQL trên Neon, Supabase hoặc dịch vụ tương đương.
+3. Import dự án vào Vercel, khai báo các biến môi trường.
+4. Chạy migration production bằng `npx prisma migrate deploy`.
+5. Cấu hình domain, Cloudinary và cập nhật `NEXT_PUBLIC_SITE_URL`.
+
+> Tất cả sản phẩm, giá và đánh giá hiện là dữ liệu minh họa. Điện máy Hinh không tự nhận là đại lý chính thức của các thương hiệu được đề cập.

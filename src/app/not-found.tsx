@@ -1,0 +1,1 @@
+import Link from 'next/link';export default function NotFound(){return <main className="container py-24 text-center"><div className="text-8xl font-black text-[#073b78]">404</div><h1 className="text-2xl font-bold mt-4">Trang bạn tìm không tồn tại</h1><Link href="/" className="btn btn-blue mt-6">Về trang chủ</Link></main>}

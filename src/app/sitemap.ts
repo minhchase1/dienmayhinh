@@ -1,0 +1,1 @@
+import {MetadataRoute} from 'next';import {products,categories} from '@/lib/data';export default function sitemap():MetadataRoute.Sitemap{const base='https://dienmayhinh.vn';return [{url:base,priority:1},...categories.map(c=>({url:`${base}/danh-muc/${c[0]}`,priority:.8})),...products.map(p=>({url:`${base}/san-pham/${p.slug}`,priority:.7}))]}
