@@ -5,7 +5,7 @@ import { Bell, ChevronDown, LayoutDashboard, LogIn, LogOut, MapPin, Menu, Packag
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { logout } from "@/app/auth-actions";
-import { markNotificationsRead, openAdminOrderNotification } from "@/app/notification-actions";
+import { markNotificationsRead, openOrderNotification } from "@/app/notification-actions";
 import { useCart } from "./cart-provider";
 
 type HeaderUser = { name: string; email: string; role: string } | null;
@@ -55,7 +55,7 @@ export default function Header({ user, categories, notifications }: { user: Head
 
           <Link href="/tra-cuu" className="desktop flex items-center gap-2"><PackageSearch /><span className="text-sm">Tra cứu<br /><b>đơn hàng</b></span></Link>
           {user ? (
-            user.role === "ADMIN" ? <Link href="/admin" className="desktop flex items-center gap-2" title={user.email}><LayoutDashboard size={21}/><span className="text-sm font-semibold">Quản trị</span></Link> : <div className="desktop flex max-w-32 items-center gap-2" title={user.email}><UserRound size={21} /><span className="truncate text-sm font-semibold">{user.name}</span></div>
+            user.role === "ADMIN" ? <Link href="/admin" className="desktop flex items-center gap-2" title={user.email}><LayoutDashboard size={21}/><span className="text-sm font-semibold">Quản trị</span></Link> : <Link href="/tai-khoan" className="desktop flex max-w-36 items-center gap-2 rounded-lg p-2 hover:bg-white/10" title="Xem tài khoản"><UserRound size={21} /><span className="truncate text-sm font-semibold">{user.name}</span></Link>
           ) : (
             <Link href="/dang-nhap" className="desktop flex items-center gap-1 text-sm font-semibold"><LogIn size={21} />Đăng nhập</Link>
           )}
@@ -66,8 +66,8 @@ export default function Header({ user, categories, notifications }: { user: Head
               <div className="flex items-center justify-between border-b p-4"><b>Thông báo</b>{unreadCount > 0 && <form action={markNotificationsRead}><button className="text-xs font-semibold text-[#18181b]">Đánh dấu đã đọc</button></form>}</div>
               <div className="max-h-96 overflow-y-auto">{notifications.map(notification => {
                 const content = <div className="flex gap-2 text-left"><span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${notification.read ? "bg-gray-300" : "bg-zinc-800"}`}/><div><b className="text-sm">{notification.title}</b><p className="mt-1 text-sm text-gray-600">{notification.message}</p><small className="mt-2 block text-gray-400">{new Date(notification.createdAt).toLocaleString("vi-VN")}</small></div></div>;
-                return user.role === "ADMIN" && notification.orderId
-                  ? <form action={openAdminOrderNotification.bind(null, notification.id, notification.orderId)} className={`border-b last:border-0 ${notification.read ? "bg-white" : "bg-zinc-100"}`} key={notification.id}><button className="block w-full p-4 hover:bg-zinc-200">{content}</button></form>
+                return notification.orderId
+                  ? <form action={openOrderNotification.bind(null, notification.id, notification.orderId)} className={`border-b last:border-0 ${notification.read ? "bg-white" : "bg-zinc-100"}`} key={notification.id}><button className="block w-full p-4 hover:bg-zinc-200">{content}</button></form>
                   : <div className={`border-b p-4 last:border-0 ${notification.read ? "bg-white" : "bg-zinc-100"}`} key={notification.id}>{content}</div>;
               })}{!notifications.length && <p className="p-8 text-center text-sm text-gray-500">Bạn chưa có thông báo mới.</p>}</div>
             </div>}
@@ -93,6 +93,7 @@ export default function Header({ user, categories, notifications }: { user: Head
           </form>
           {!user && <Link className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" href="/dang-nhap"><LogIn size={18} />Đăng nhập / Đăng ký</Link>}
           {user?.role === "ADMIN" && <Link className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" href="/admin"><LayoutDashboard size={18}/>Quản trị danh mục</Link>}
+          {user && user.role !== "ADMIN" && <Link className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" href="/tai-khoan"><UserRound size={18}/>Tài khoản của tôi</Link>}
         </div>
       </header>
 

@@ -25,6 +25,24 @@ model User {
   sessions      Session[]
   orders        Order[]
   notifications Notification[]
+  addresses     UserAddress[]
+}
+
+model UserAddress {
+  id            String   @id @default(cuid())
+  label         String
+  recipientName String
+  phone         String
+  city          String
+  district      String
+  ward          String
+  address       String
+  isDefault     Boolean  @default(false)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@index([userId, isDefault])
 }
 
 model Session {

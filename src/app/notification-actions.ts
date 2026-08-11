@@ -12,10 +12,12 @@ export async function markNotificationsRead() {
   revalidatePath("/", "layout");
 }
 
-export async function openAdminOrderNotification(notificationId: string, orderId: string) {
+export async function openOrderNotification(notificationId: string, orderId: string) {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") redirect("/dang-nhap?next=/admin");
-  await prisma.notification.updateMany({ where: { id: notificationId, userId: user.id, orderId }, data: { readAt: new Date() } });
+  if (!user) redirect("/dang-nhap");
+  const notification = await prisma.notification.findFirst({ where: { id: notificationId, userId: user.id, orderId }, select: { order: { select: { code: true } } } });
+  if (!notification?.order) redirect("/tra-cuu");
+  await prisma.notification.update({ where: { id: notificationId }, data: { readAt: new Date() } });
   revalidatePath("/", "layout");
-  redirect("/admin#orders");
+  redirect(`/tra-cuu?q=${encodeURIComponent(notification.order.code)}`);
 }

@@ -13,13 +13,16 @@ function FieldError({ errors }: { errors?: string[] }) {
   return <p className="mt-1 text-sm text-red-600" role="alert">{errors[0]}</p>;
 }
 
-export default function AuthForm({ mode }: { mode: "login" | "register" }) {
+export default function AuthForm({ mode, next }: { mode: "login" | "register"; next?: string }) {
   const isRegister = mode === "register";
   const [state, action, pending] = useActionState(isRegister ? register : login, initialState);
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <form action={action} className="space-y-5">
+      {!isRegister && next && (
+        <input type="hidden" name="next" value={next}/>
+      )}
       {isRegister && (
         <div>
           <label className="mb-2 block text-sm font-semibold" htmlFor="name">Họ và tên</label>

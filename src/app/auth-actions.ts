@@ -76,7 +76,8 @@ export async function login(_state: AuthState, formData: FormData): Promise<Auth
   }
 
   await createSession(user.id);
-  redirect("/");
+  const next = String(formData.get("next") ?? "");
+  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
 }
 
 export async function logout() {
