@@ -27,7 +27,7 @@ const icons = [
 export default function Home() {
   return (
     <main id="top">
-      <section className="bg-gradient-to-br from-[#073b78] via-[#07509d] to-[#021c35] text-white overflow-hidden">
+      <section className="bg-gradient-to-br from-[#18181b] via-[#27272a] to-[#09090b] text-white overflow-hidden">
         <div className="container grid md:grid-cols-[.9fr_1.1fr] min-h-[470px] items-center py-12 gap-10">
           <div className="relative z-10">
             <span className="inline-block bg-[#ffd21c] text-black font-bold rounded-full px-4 py-2">
@@ -38,7 +38,7 @@ export default function Home() {
               <br />
               <span className="text-[#ffd21c]">CHÍNH HÃNG</span>
             </h1>
-            <p className="text-xl text-blue-100 mt-5">
+            <p className="text-xl text-zinc-300 mt-5">
               Giá minh bạch · Giao lắp tận tâm · Bảo hành chính hãng
             </p>
             <Link href="/danh-muc/khuyen-mai" className="btn btn-primary mt-7">
@@ -46,7 +46,7 @@ export default function Home() {
             </Link>
           </div>
           <div className="relative">
-            <div className="absolute -inset-8 bg-blue-300/20 blur-3xl rounded-full" />
+            <div className="absolute -inset-8 bg-zinc-300/20 blur-3xl rounded-full" />
             <div className="relative aspect-[4/3] overflow-hidden rounded-3xl border-4 border-white/20 shadow-2xl">
               <Image
                 src="/mat-tien-dien-may-hinh-moi.png"
@@ -56,11 +56,11 @@ export default function Home() {
                 sizes="(max-width: 768px) 100vw, 55vw"
                 className="object-cover"
               />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#021c35]/95 to-transparent pt-20 pb-5 px-6">
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#09090b]/95 to-transparent pt-20 pb-5 px-6">
                 <b className="text-lg md:text-xl">
                   Điện máy Hinh – Uy tín từ cửa hàng gia đình
                 </b>
-                <span className="block text-sm text-blue-100 mt-1">
+                <span className="block text-sm text-zinc-300 mt-1">
                   274 Phạm Văn Đồng, Bình Sơn, Quảng Ngãi
                 </span>
               </div>
@@ -79,7 +79,7 @@ export default function Home() {
             const Icon = I as typeof BadgeCheck;
             return (
               <div key={i} className="flex gap-3 items-center px-3 py-2">
-                <Icon className="text-[#073b78]" size={30} />
+                <Icon className="text-[#18181b]" size={30} />
                 <div>
                   <b className="block">{t as string}</b>
                   <small className="text-gray-500">{d as string}</small>
@@ -92,14 +92,14 @@ export default function Home() {
       <section className="container py-12">
         <div className="flex justify-between items-end mb-5">
           <div>
-            <span className="text-[#073b78] font-bold">MUA SẮM DỄ DÀNG</span>
+            <span className="text-[#18181b] font-bold">MUA SẮM DỄ DÀNG</span>
             <h2 className="text-2xl md:text-3xl font-black">
               Danh mục nổi bật
             </h2>
           </div>
           <Link
             href="/danh-muc/khuyen-mai"
-            className="text-[#073b78] font-bold"
+            className="text-[#18181b] font-bold"
           >
             Xem tất cả →
           </Link>
@@ -111,9 +111,9 @@ export default function Home() {
               <Link
                 href={"/danh-muc/" + c[0]}
                 key={c[0]}
-                className="card p-4 text-center hover:border-[#073b78] hover:-translate-y-1 transition"
+                className="card p-4 text-center hover:border-[#18181b] hover:-translate-y-1 transition"
               >
-                <I className="mx-auto text-[#073b78]" size={36} />
+                <I className="mx-auto text-[#18181b]" size={36} />
                 <b className="block text-sm mt-3">{c[1]}</b>
               </Link>
             );
@@ -139,8 +139,8 @@ export default function Home() {
             Mua ngay
           </Link>
         </div>
-        <div className="rounded-2xl bg-[#073b78] text-white p-8">
-          <span className="font-bold text-blue-200">TỦ LẠNH INVERTER</span>
+        <div className="rounded-2xl bg-[#18181b] text-white p-8">
+          <span className="font-bold text-zinc-300">TỦ LẠNH INVERTER</span>
           <h2 className="text-3xl font-black mt-2">Tươi ngon trọn vị</h2>
           <p className="mt-3">Bảo hành chính hãng, giao hàng tận nơi.</p>
           <Link href="/danh-muc/tu-lanh" className="btn btn-primary mt-5">
@@ -169,11 +169,11 @@ export default function Home() {
             "Hướng dẫn vệ sinh máy giặt tại nhà",
           ].map((x, i) => (
             <article className="card overflow-hidden" key={x}>
-              <div className="h-40 bg-gradient-to-br from-blue-100 to-blue-300 grid place-content-center text-6xl">
+              <div className="h-40 bg-gradient-to-br from-zinc-100 to-zinc-300 grid place-content-center text-6xl">
                 {["❄️", "🧊", "🫧"][i]}
               </div>
               <div className="p-5">
-                <small className="text-[#073b78] font-bold">
+                <small className="text-[#18181b] font-bold">
                   TƯ VẤN MUA SẮM
                 </small>
                 <h3 className="font-bold text-lg mt-2">{x}</h3>
@@ -200,10 +200,10 @@ function Section({
 }) {
   return (
     <section className="container py-8">
-      <span className="text-[#073b78] font-bold">{subtitle}</span>
+      <span className="text-[#18181b] font-bold">{subtitle}</span>
       <div className="flex justify-between items-center mb-5">
         <h2 className="text-2xl md:text-3xl font-black">{title}</h2>
-        <Link href="/danh-muc/khuyen-mai" className="text-[#073b78] font-bold">
+        <Link href="/danh-muc/khuyen-mai" className="text-[#18181b] font-bold">
           Xem tất cả →
         </Link>
       </div>

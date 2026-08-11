@@ -2,7 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
-  prismaV2: PrismaClient | undefined;
+  prismaV3: PrismaClient | undefined;
 };
 
 function createPrismaClient() {
@@ -16,8 +16,8 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prismaV2 ?? createPrismaClient();
+export const prisma = globalForPrisma.prismaV3 ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prismaV2 = prisma;
+  globalForPrisma.prismaV3 = prisma;
 }
