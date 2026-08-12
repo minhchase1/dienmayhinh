@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "node prisma/seed.mjs",
+    "db:setup": "npm run db:deploy && npm run db:seed"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",

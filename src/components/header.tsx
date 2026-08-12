@@ -5,7 +5,7 @@ import { Bell, ChevronDown, LayoutDashboard, LogIn, LogOut, MapPin, Menu, Packag
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { logout } from "@/app/auth-actions";
-import { markNotificationsRead, openOrderNotification } from "@/app/notification-actions";
+import { deleteAllNotifications, markNotificationsRead, openOrderNotification } from "@/app/notification-actions";
 import { useCart } from "./cart-provider";
 
 type HeaderUser = { name: string; email: string; role: string } | null;
@@ -63,7 +63,7 @@ export default function Header({ user, categories, notifications }: { user: Head
           {user && <div className="relative">
             <button type="button" onClick={() => setNotificationOpen(value => !value)} className="relative grid h-10 w-10 place-content-center rounded-lg hover:bg-white/10" aria-label="Thông báo" aria-expanded={notificationOpen}><Bell size={22}/>{unreadCount > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-content-center rounded-full bg-red-500 px-1 text-xs">{unreadCount > 9 ? "9+" : unreadCount}</span>}</button>
             {notificationOpen && <div className="absolute right-0 top-12 z-50 w-[min(90vw,380px)] overflow-hidden rounded-xl border bg-white text-gray-900 shadow-2xl">
-              <div className="flex items-center justify-between border-b p-4"><b>Thông báo</b>{unreadCount > 0 && <form action={markNotificationsRead}><button className="text-xs font-semibold text-[#18181b]">Đánh dấu đã đọc</button></form>}</div>
+              <div className="border-b p-4"><div className="flex items-center justify-between gap-3"><b>Thông báo</b>{unreadCount > 0 && <form action={markNotificationsRead}><button className="text-xs font-semibold text-[#18181b]">Đánh dấu đã đọc</button></form>}</div>{notifications.length > 0 && <form action={deleteAllNotifications} className="mt-2 text-right"><button className="text-xs font-semibold text-red-600 hover:underline">Xóa tất cả thông báo</button></form>}</div>
               <div className="max-h-96 overflow-y-auto">{notifications.map(notification => {
                 const content = <div className="flex gap-2 text-left"><span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${notification.read ? "bg-gray-300" : "bg-zinc-800"}`}/><div><b className="text-sm">{notification.title}</b><p className="mt-1 text-sm text-gray-600">{notification.message}</p><small className="mt-2 block text-gray-400">{new Date(notification.createdAt).toLocaleString("vi-VN")}</small></div></div>;
                 return notification.orderId

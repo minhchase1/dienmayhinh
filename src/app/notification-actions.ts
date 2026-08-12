@@ -12,6 +12,13 @@ export async function markNotificationsRead() {
   revalidatePath("/", "layout");
 }
 
+export async function deleteAllNotifications() {
+  const user = await getCurrentUser();
+  if (!user) return;
+  await prisma.notification.deleteMany({ where: { userId: user.id } });
+  revalidatePath("/", "layout");
+}
+
 export async function openOrderNotification(notificationId: string, orderId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/dang-nhap");

@@ -16,16 +16,18 @@ enum OrderStatus {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  name          String
-  email         String         @unique
-  passwordHash  String
-  role          String         @default("CUSTOMER")
-  createdAt     DateTime       @default(now())
-  sessions      Session[]
-  orders        Order[]
-  notifications Notification[]
-  addresses     UserAddress[]
+  id                 String              @id @default(cuid())
+  name               String
+  email              String              @unique
+  passwordHash       String
+  role               String              @default("CUSTOMER")
+  createdAt          DateTime            @default(now())
+  sessions           Session[]
+  orders             Order[]
+  notifications      Notification[]
+  addresses          UserAddress[]
+  orderEvents        OrderStatusEvent[]
+  inventoryMovements InventoryMovement[]
 }
 
 model UserAddress {
@@ -73,25 +75,26 @@ model Brand {
 }
 
 model Product {
-  id               String                 @id @default(cuid())
-  name             String
-  slug             String                 @unique
-  sku              String                 @unique
-  price            Decimal                @db.Decimal(12, 0)
-  salePrice        Decimal?               @db.Decimal(12, 0)
-  stock            Int                    @default(0)
-  shortDescription String?
-  description      String?
-  visible          Boolean                @default(true)
-  categoryId       String
-  brandId          String
-  category         Category               @relation(fields: [categoryId], references: [id])
-  brand            Brand                  @relation(fields: [brandId], references: [id])
-  images           ProductImage[]
-  specifications   ProductSpecification[]
-  reviews          Review[]
-  orderItems       OrderItem[]
-  createdAt        DateTime               @default(now())
+  id                 String                 @id @default(cuid())
+  name               String
+  slug               String                 @unique
+  sku                String                 @unique
+  price              Decimal                @db.Decimal(12, 0)
+  salePrice          Decimal?               @db.Decimal(12, 0)
+  stock              Int                    @default(0)
+  shortDescription   String?
+  description        String?
+  visible            Boolean                @default(true)
+  categoryId         String
+  brandId            String
+  category           Category               @relation(fields: [categoryId], references: [id])
+  brand              Brand                  @relation(fields: [brandId], references: [id])
+  images             ProductImage[]
+  specifications     ProductSpecification[]
+  reviews            Review[]
+  orderItems         OrderItem[]
+  inventoryMovements InventoryMovement[]
+  createdAt          DateTime               @default(now())
 }
 
 model ProductImage {
@@ -122,24 +125,69 @@ model Customer {
 }
 
 model Order {
-  id            String         @id @default(cuid())
-  code          String         @unique
-  customerId    String
-  customer      Customer       @relation(fields: [customerId], references: [id])
-  userId        String?
-  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  status        OrderStatus    @default(PENDING)
-  total         Decimal        @db.Decimal(12, 0)
-  address       String
-  note          String?
-  paymentMethod String
-  installation  Boolean        @default(false)
-  items         OrderItem[]
-  notifications Notification[]
-  createdAt     DateTime       @default(now())
+  id                 String              @id @default(cuid())
+  code               String              @unique
+  customerId         String
+  customer           Customer            @relation(fields: [customerId], references: [id])
+  userId             String?
+  user               User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status             OrderStatus         @default(PENDING)
+  total              Decimal             @db.Decimal(12, 0)
+  address            String
+  note               String?
+  paymentMethod      String
+  installation       Boolean             @default(false)
+  items              OrderItem[]
+  notifications      Notification[]
+  statusEvents       OrderStatusEvent[]
+  inventoryMovements InventoryMovement[]
+  cancelledAt        DateTime?
+  cancellationReason String?
+  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime            @default(now())
 
   @@index([userId])
   @@index([customerId])
+}
+
+model OrderStatusEvent {
+  id         String       @id @default(cuid())
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  note       String?
+  actorId    String?
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor      User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([actorId])
+}
+
+enum InventoryMovementType {
+  ORDER_RESERVED
+  ORDER_CANCELLED
+  MANUAL_ADJUSTMENT
+}
+
+model InventoryMovement {
+  id         String                @id @default(cuid())
+  productId  String
+  orderId    String?
+  actorId    String?
+  type       InventoryMovementType
+  quantity   Int
+  stockAfter Int
+  note       String?
+  product    Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  order      Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  actor      User?                 @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt  DateTime              @default(now())
+
+  @@index([productId, createdAt])
+  @@index([orderId])
+  @@index([actorId])
 }
 
 model Notification {

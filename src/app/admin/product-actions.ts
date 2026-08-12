@@ -33,6 +33,7 @@ function slugify(value: string) {
 async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user || user.role !== "ADMIN") throw new Error("Bạn không có quyền đăng sản phẩm.");
+  return user;
 }
 
 function parseSpecifications(value: string) {
@@ -86,7 +87,7 @@ function parseProductForm(formData: FormData) {
 export async function createProduct(_state: ProductActionState, formData: FormData): Promise<ProductActionState> {
   let savedImages: { diskPath: string; url: string }[] = [];
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const parsed = parseProductForm(formData);
     if (!parsed.success) return { success: false, errors: parsed.error.flatten().fieldErrors as Record<string, string[]> };
     savedImages = await saveImages(formData.getAll("images").filter((value): value is File => value instanceof File));
@@ -103,6 +104,7 @@ export async function createProduct(_state: ProductActionState, formData: FormDa
         images: { create: savedImages.map((image, position) => ({ url: image.url, alt: data.name, position })) },
         specifications: { create: parseSpecifications(data.specifications) },
       } });
+      if (data.stock > 0) await tx.inventoryMovement.create({ data: { productId: created.id, actorId: admin.id, type: "MANUAL_ADJUSTMENT", quantity: data.stock, stockAfter: data.stock, note: "Tồn kho ban đầu khi tạo sản phẩm" } });
       return { ...created, categorySlug: category.slug };
     });
     revalidatePath("/admin"); revalidatePath(`/danh-muc/${product.categorySlug}`); revalidatePath(`/san-pham/${product.slug}`); revalidatePath("/");
@@ -118,10 +120,10 @@ export async function createProduct(_state: ProductActionState, formData: FormDa
 export async function updateProduct(id: string, _state: ProductActionState, formData: FormData): Promise<ProductActionState> {
   let newImages: { diskPath: string; url: string }[] = [];
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const parsed = parseProductForm(formData);
     if (!parsed.success) return { success: false, errors: parsed.error.flatten().fieldErrors as Record<string, string[]> };
-    const current = await prisma.product.findUnique({ where: { id }, select: { slug: true, category: { select: { slug: true } }, images: { select: { url: true } } } });
+    const current = await prisma.product.findUnique({ where: { id }, select: { slug: true, stock: true, category: { select: { slug: true } }, images: { select: { url: true } } } });
     if (!current) return { success: false, message: "Sản phẩm không còn tồn tại." };
     const uploadedFiles = formData.getAll("images").filter((value): value is File => value instanceof File && value.size > 0);
     if (uploadedFiles.length) newImages = await saveImages(uploadedFiles);
@@ -139,6 +141,7 @@ export async function updateProduct(id: string, _state: ProductActionState, form
         ...(newImages.length ? { images: { create: newImages.map((image, position) => ({ url: image.url, alt: data.name, position })) } } : {}),
         specifications: { create: parseSpecifications(data.specifications) },
       } });
+      if (data.stock !== current.stock) await tx.inventoryMovement.create({ data: { productId: id, actorId: admin.id, type: "MANUAL_ADJUSTMENT", quantity: data.stock - current.stock, stockAfter: data.stock, note: "Điều chỉnh tồn kho trong quản trị sản phẩm" } });
       return { product, categorySlug: category.slug };
     });
     if (newImages.length) await deleteLocalImages(current.images.map((image) => image.url));

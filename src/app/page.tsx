@@ -1,7 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import ProductCard from "@/components/product-card";
-import { products, categories } from "@/lib/data";
+import { categories, type Product } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
+import { productInclude, toStoreProduct } from "@/lib/product-data";
 import {
   Snowflake,
   Refrigerator,
@@ -24,7 +26,12 @@ const icons = [
   Refrigerator,
   Wind,
 ];
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const products = (await prisma.product.findMany({
+    where: { visible: true }, orderBy: { createdAt: "desc" }, take: 24, include: productInclude,
+  })).map(toStoreProduct);
   return (
     <main id="top">
       <section className="bg-gradient-to-br from-[#18181b] via-[#27272a] to-[#09090b] text-white overflow-hidden">
@@ -196,7 +203,7 @@ function Section({
 }: {
   title: string;
   subtitle: string;
-  list: typeof products;
+  list: Product[];
 }) {
   return (
     <section className="container py-8">
