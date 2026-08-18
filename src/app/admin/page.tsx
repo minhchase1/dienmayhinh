@@ -19,7 +19,17 @@ export default async function AdminPage() {
   const [categories, products, orders] = await Promise.all([
     prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, slug: true, description: true, _count: { select: { products: true } } } }),
     prisma.product.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, slug: true, sku: true, salePrice: true, price: true, stock: true, visible: true, shortDescription: true, description: true, categoryId: true, category: { select: { name: true } }, brand: { select: { name: true } }, images: { orderBy: { position: "asc" }, select: { url: true } }, specifications: { select: { name: true, value: true } } } }),
-    prisma.order.findMany({ orderBy: { createdAt: "desc" }, take: 100, select: { id: true, code: true, status: true, total: true, address: true, createdAt: true, paymentMethod: true, paymentStatus: true, paymentRequired: true, paidAmount: true, paymentReference: true, customer: { select: { name: true, phone: true } }, _count: { select: { items: true } } } }),
+    prisma.order.findMany({
+      where: {
+        OR: [
+          { paymentRequired: { lte: 0 } },
+          { paymentStatus: { not: "PENDING" } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, code: true, status: true, total: true, address: true, createdAt: true, paymentMethod: true, paymentStatus: true, paymentRequired: true, paidAmount: true, paymentReference: true, customer: { select: { name: true, phone: true } }, _count: { select: { items: true } } },
+    }),
   ]);
 
   return (
