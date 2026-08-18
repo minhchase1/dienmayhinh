@@ -23,7 +23,12 @@ try {
   const name = process.env.ADMIN_INITIAL_NAME?.trim() || "Quản trị viên";
   if (email && password) {
     if (password.length < 12) throw new Error("ADMIN_INITIAL_PASSWORD must contain at least 12 characters");
-    await prisma.user.upsert({ where: { email }, update: { name, role: "ADMIN" }, create: { name, email, role: "ADMIN", passwordHash: await hash(password, 12) } });
+    const passwordHash = await hash(password, 12);
+    await prisma.user.upsert({
+      where: { email },
+      update: { name, role: "ADMIN", passwordHash },
+      create: { name, email, role: "ADMIN", passwordHash },
+    });
     console.log(`Seeded categories and admin ${email}`);
   } else {
     console.log("Seeded categories. Admin was skipped because ADMIN_INITIAL_EMAIL/PASSWORD are not set.");
