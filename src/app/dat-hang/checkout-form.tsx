@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- VietQR is generated dynamically by the bank/account configuration. */
 
 import Link from "next/link";
+import { BadgeCheck, Check, History, Phone, ShoppingBag } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useCart } from "@/components/cart-provider";
 import { money } from "@/lib/data";
@@ -38,9 +39,7 @@ export default function CheckoutForm({ user, addresses, bankTransferAvailable }:
   function chooseAddress(id: string) { setSelectedId(id); const address = addresses.find(item => item.id === id); if (address) setReceiver(current => ({ ...current, name: address.recipientName, phone: address.phone, city: address.city, district: address.district, ward: address.ward, address: address.address })); }
   function field(name: keyof Receiver, value: string) { setReceiver(current => ({ ...current, [name]: value })); }
 
-  if (state.success && state.code) return <main className="container py-12"><div className="card mx-auto max-w-xl p-6 text-center sm:p-10"><div className="text-6xl">✅</div><h1 className="mt-5 text-3xl font-black">Đã tạo đơn hàng!</h1><p className="mt-3">Mã đơn hàng của bạn</p><b className="mt-2 block text-2xl text-[#18181b]">{state.code}</b>
-    {state.paymentRequired ? paymentConfirmed ? <section className="mt-6 rounded-xl border border-emerald-300 bg-emerald-50 p-6"><div className="text-5xl">🎉</div><h2 className="mt-3 text-2xl font-black text-emerald-800">Thanh toán thành công!</h2><p className="mt-2 text-emerald-800">Cửa hàng đã ghi nhận {money(state.paymentRequired)} cho đơn {state.code}.</p>{state.paymentMethod === paymentMethods.COD && <p className="mt-2 text-sm font-semibold">Số tiền còn lại khi nhận hàng: {money(state.remainingOnDelivery ?? 0)}</p>}</section> : <section className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-5"><h2 className="text-xl font-black text-amber-900">Hoàn tất thanh toán {money(state.paymentRequired)}</h2><p className="mt-2 text-sm text-amber-900">Quét mã QR và giữ nguyên số tiền cùng nội dung chuyển khoản. Trang này sẽ tự cập nhật khi cửa hàng ghi nhận tiền.</p>{state.qrUrl && <img src={state.qrUrl} alt={`Mã QR thanh toán đơn ${state.code}`} className="mx-auto mt-4 w-full max-w-72 rounded-lg bg-white"/>}<dl className="mx-auto mt-4 grid max-w-sm gap-2 text-left text-sm"><div className="flex justify-between gap-3"><dt>Số tài khoản</dt><dd className="font-bold">{state.bank?.accountNo}</dd></div><div className="flex justify-between gap-3"><dt>Chủ tài khoản</dt><dd className="font-bold">{state.bank?.accountName}</dd></div><div className="flex justify-between gap-3"><dt>Nội dung</dt><dd className="font-black text-red-700">{state.code.replaceAll("-", "")}</dd></div></dl>{state.paymentMethod === paymentMethods.COD && <p className="mt-4 rounded-lg bg-white p-3 text-sm font-semibold">Đây là tiền cọc vận chuyển. Còn lại {money(state.remainingOnDelivery ?? 0)} thanh toán khi nhận hàng.</p>}<p className="mt-3 animate-pulse text-xs font-semibold text-amber-800">Đang chờ xác nhận giao dịch…</p></section> : <p className="mt-4 text-gray-500">Bạn thanh toán tại cửa hàng khi đến nhận hàng. Cửa hàng sẽ liên hệ xác nhận sớm nhất.</p>}
-    <div className="mt-6 flex flex-wrap justify-center gap-3">{paymentConfirmed && <Link href="/" className="btn bg-red-600 text-white">Tiếp tục mua sắm</Link>}{user && <Link href="/tai-khoan" className="btn btn-primary">Xem lịch sử đơn hàng</Link>}<a href="tel:0914845274" className="btn btn-blue">Gọi hỗ trợ: 0914 845 274</a></div></div></main>;
+  if (state.success && state.code) return <OrderSuccess state={state} paymentConfirmed={paymentConfirmed} signedIn={Boolean(user)} />;
 
   return <main className="container py-8"><h1 className="text-3xl font-black">Thông tin đặt hàng</h1>
     <form action={action} className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -55,6 +54,68 @@ export default function CheckoutForm({ user, addresses, bankTransferAvailable }:
       <aside className="card h-fit p-5"><h2 className="text-xl font-bold">Đơn hàng ({items.length})</h2>{items.map(item => <div className="flex justify-between border-b py-3 text-sm" key={item.product.id}><span>{item.product.name} × {item.quantity}</span><b>{money(item.product.salePrice * item.quantity)}</b></div>)}<div className="mt-5 flex justify-between text-xl"><b>Tổng tiền</b><strong className="text-red-600">{money(total)}</strong></div>{state.message && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.message}</p>}<button disabled={!items.length || pending} className="btn mt-5 w-full bg-red-600 text-white disabled:opacity-50">{pending ? "Đang tạo đơn..." : "Đặt hàng"}</button><p className="mt-3 text-xs text-gray-500">Bằng việc đặt hàng, bạn đồng ý với chính sách mua hàng của Điện máy Hinh.</p></aside>
     </form>
   </main>;
+}
+
+function OrderSuccess({ state, paymentConfirmed, signedIn }: { state: CheckoutState; paymentConfirmed: boolean; signedIn: boolean }) {
+  const code = state.code!;
+  return (
+    <main className="container py-10 sm:py-14">
+      <article className="card mx-auto max-w-2xl overflow-hidden shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
+        <header className="border-b border-zinc-100 px-6 py-8 text-center sm:px-10">
+          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-zinc-950 text-white shadow-lg shadow-zinc-950/15">
+            <Check aria-hidden="true" size={34} strokeWidth={2.5} />
+          </div>
+          <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Đặt hàng thành công</p>
+          <h1 className="mt-2 text-2xl font-black text-zinc-950 sm:text-3xl">Cảm ơn bạn đã đặt hàng</h1>
+          <div className="mx-auto mt-5 w-fit rounded-xl border border-zinc-200 bg-zinc-50 px-5 py-3">
+            <span className="block text-xs font-medium text-zinc-500">Mã đơn hàng</span>
+            <strong className="mt-0.5 block text-xl tracking-wide text-zinc-950 sm:text-2xl">{code}</strong>
+          </div>
+        </header>
+
+        <div className="px-5 py-6 sm:px-10 sm:py-8">
+          {state.paymentRequired ? paymentConfirmed ? (
+            <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 text-center sm:p-7">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-600 text-white">
+                <BadgeCheck aria-hidden="true" size={28} strokeWidth={2.25} />
+              </div>
+              <h2 className="mt-4 text-xl font-black text-emerald-950 sm:text-2xl">Thanh toán đã được xác nhận</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-emerald-900">
+                Hệ thống đã ghi nhận <strong>{money(state.paymentRequired)}</strong> cho đơn hàng của bạn.
+              </p>
+              {state.paymentMethod === paymentMethods.COD && (
+                <div className="mx-auto mt-5 flex max-w-md items-center justify-between gap-4 rounded-xl bg-white px-4 py-3 text-left text-sm shadow-sm ring-1 ring-emerald-100">
+                  <span className="text-zinc-600">Thanh toán khi nhận hàng</span>
+                  <strong className="whitespace-nowrap text-zinc-950">{money(state.remainingOnDelivery ?? 0)}</strong>
+                </div>
+              )}
+            </section>
+          ) : (
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center sm:p-6">
+              <h2 className="text-xl font-black text-amber-950">Hoàn tất thanh toán {money(state.paymentRequired)}</h2>
+              <p className="mt-2 text-sm leading-6 text-amber-900">Quét mã QR và giữ nguyên số tiền cùng nội dung chuyển khoản. Trang sẽ tự cập nhật khi giao dịch được ghi nhận.</p>
+              {state.qrUrl && <img src={state.qrUrl} alt={`Mã QR thanh toán đơn ${code}`} className="mx-auto mt-4 w-full max-w-72 rounded-xl bg-white p-2 shadow-sm"/>}
+              <dl className="mx-auto mt-4 grid max-w-sm gap-2 rounded-xl bg-white p-4 text-left text-sm">
+                <div className="flex justify-between gap-3"><dt className="text-zinc-500">Số tài khoản</dt><dd className="font-bold">{state.bank?.accountNo}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-zinc-500">Chủ tài khoản</dt><dd className="font-bold">{state.bank?.accountName}</dd></div>
+                <div className="flex justify-between gap-3"><dt className="text-zinc-500">Nội dung</dt><dd className="font-black text-red-700">{code.replaceAll("-", "")}</dd></div>
+              </dl>
+              {state.paymentMethod === paymentMethods.COD && <p className="mt-4 text-sm font-semibold text-amber-950">Đây là tiền cọc vận chuyển. Còn lại {money(state.remainingOnDelivery ?? 0)} thanh toán khi nhận hàng.</p>}
+              <p className="mt-4 text-xs font-semibold text-amber-800">Đang chờ xác nhận giao dịch…</p>
+            </section>
+          ) : (
+            <p className="rounded-xl bg-zinc-50 p-4 text-center text-sm leading-6 text-zinc-600">Bạn thanh toán tại cửa hàng khi đến nhận hàng. Cửa hàng sẽ liên hệ xác nhận sớm nhất.</p>
+          )}
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {paymentConfirmed && <Link href="/" className="btn bg-red-600 text-white"><ShoppingBag aria-hidden="true" size={18}/>Tiếp tục mua sắm</Link>}
+            {signedIn && <Link href="/tai-khoan" className="btn btn-primary"><History aria-hidden="true" size={18}/>Lịch sử đơn hàng</Link>}
+            <a href="tel:0914845274" className="btn border border-zinc-200 bg-white text-zinc-800 sm:col-span-2"><Phone aria-hidden="true" size={18}/>Hỗ trợ: 0914 845 274</a>
+          </div>
+        </div>
+      </article>
+    </main>
+  );
 }
 
 function Field({ label, name, value, onChange, type = "text", required = true, className = "" }: { label: string; name: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; className?: string }) { return <label className={`block ${className}`}><span className="text-sm font-semibold">{label}</span><input name={name} value={value} onChange={event => onChange(event.target.value)} required={required} type={type} className="mt-1 w-full rounded-lg border p-3"/></label>; }
