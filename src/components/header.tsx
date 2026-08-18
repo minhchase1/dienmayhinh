@@ -41,11 +41,11 @@ export default function Header({ user, categories, notifications }: { user: Head
       </div>
 
       <header className="sticky top-0 z-40 bg-[#18181b] text-white shadow">
-        <div className="container flex items-center gap-4 py-4">
-          <button className="md:hidden" onClick={() => setOpen(!open)} aria-label="Mở menu"><Menu /></button>
+        <div className="container flex items-center gap-2 py-3 sm:gap-4 sm:py-4">
+          <button className="shrink-0 md:hidden" onClick={() => setOpen(!open)} aria-label="Mở menu"><Menu /></button>
           <Link href="/" className="flex shrink-0 items-center gap-2">
-            <div className="grid h-11 w-11 place-content-center rounded-xl bg-[#ffd21c] text-xl font-black text-[#18181b]">H</div>
-            <div><b className="text-xl">ĐIỆN MÁY HINH</b><small className="desktop block text-zinc-300">Giá tốt cho mọi nhà</small></div>
+            <div className="grid h-9 w-9 place-content-center rounded-lg bg-[#ffd21c] text-lg font-black text-[#18181b] sm:h-11 sm:w-11 sm:rounded-xl sm:text-xl">H</div>
+            <div className="hidden min-[390px]:block"><b className="text-sm whitespace-nowrap sm:text-xl">ĐIỆN MÁY HINH</b><small className="desktop block text-zinc-300">Giá tốt cho mọi nhà</small></div>
           </Link>
 
           <form className="desktop relative flex-1" onSubmit={(event) => { event.preventDefault(); search(); }}>
@@ -60,7 +60,7 @@ export default function Header({ user, categories, notifications }: { user: Head
             <Link href="/dang-nhap" className="desktop flex items-center gap-1 text-sm font-semibold"><LogIn size={21} />Đăng nhập</Link>
           )}
 
-          {user && <div className="relative">
+          {user && <div className="relative ml-auto md:ml-0">
             <button type="button" onClick={() => setNotificationOpen(value => !value)} className="relative grid h-10 w-10 place-content-center rounded-lg hover:bg-white/10" aria-label="Thông báo" aria-expanded={notificationOpen}><Bell size={22}/>{unreadCount > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-content-center rounded-full bg-red-500 px-1 text-xs">{unreadCount > 9 ? "9+" : unreadCount}</span>}</button>
             {notificationOpen && <div className="absolute right-0 top-12 z-50 w-[min(90vw,380px)] overflow-hidden rounded-xl border bg-white text-gray-900 shadow-2xl">
               <div className="border-b p-4"><div className="flex items-center justify-between gap-3"><b>Thông báo</b>{unreadCount > 0 && <form action={markNotificationsRead}><button className="text-xs font-semibold text-[#18181b]">Đánh dấu đã đọc</button></form>}</div>{notifications.length > 0 && <form action={deleteAllNotifications} className="mt-2 text-right"><button className="text-xs font-semibold text-red-600 hover:underline">Xóa tất cả thông báo</button></form>}</div>
@@ -73,7 +73,7 @@ export default function Header({ user, categories, notifications }: { user: Head
             </div>}
           </div>}
 
-          <Link href="/gio-hang" className="relative flex items-center gap-2">
+          <Link href="/gio-hang" className={`relative flex shrink-0 items-center gap-2 ${user ? "" : "ml-auto md:ml-0"}`}>
             <ShoppingCart /><b className="desktop">Giỏ hàng</b>
             <span className="absolute -right-2 -top-3 grid h-5 w-5 place-content-center rounded-full bg-red-500 text-xs">{cartCount}</span>
           </Link>

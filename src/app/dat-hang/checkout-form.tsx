@@ -41,17 +41,17 @@ export default function CheckoutForm({ user, addresses, bankTransferAvailable }:
 
   if (state.success && state.code) return <OrderSuccess state={state} paymentConfirmed={paymentConfirmed} signedIn={Boolean(user)} />;
 
-  return <main className="container py-8"><h1 className="text-3xl font-black">Thông tin đặt hàng</h1>
+  return <main className="container py-5 sm:py-8"><h1 className="text-2xl font-black sm:text-3xl">Thông tin đặt hàng</h1>
     <form action={action} className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
       <input type="hidden" name="items" value={JSON.stringify(items.map(item => ({ productId: String(item.product.id), quantity: item.quantity })))}/>
-      <section className="card p-6"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-xl font-bold">Thông tin người nhận</h2>{user && <Link href="/tai-khoan" className="text-sm font-bold hover:underline">Quản lý địa chỉ</Link>}</div>
+      <section className="card p-4 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-xl font-bold">Thông tin người nhận</h2>{user && <Link href="/tai-khoan" className="text-sm font-bold hover:underline">Quản lý địa chỉ</Link>}</div>
         {addresses.length > 0 && <label className="mt-5 block"><span className="text-sm font-semibold">Chọn địa chỉ đã lưu</span><select value={selectedId} onChange={event => chooseAddress(event.target.value)} className="mt-1 w-full rounded-lg border bg-white p-3"><option value="">Nhập địa chỉ khác</option>{addresses.map(item => <option value={item.id} key={item.id}>{item.label}{item.isDefault ? " (Mặc định)" : ""} — {item.recipientName}, {item.phone}</option>)}</select></label>}
         {!user && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800"><Link href="/dang-nhap?next=/dat-hang" className="font-bold underline">Đăng nhập</Link> để tự điền thông tin và lưu lịch sử mua hàng.</p>}
         <div className="mt-5 grid gap-4 md:grid-cols-2"><Field label="Họ và tên *" name="name" value={receiver.name} onChange={value => field("name", value)}/><Field label="Số điện thoại *" name="phone" type="tel" value={receiver.phone} onChange={value => field("phone", value)}/><Field label="Email" name="email" type="email" required={false} value={receiver.email} onChange={value => field("email", value)}/><Field label="Tỉnh / Thành phố *" name="city" value={receiver.city} onChange={value => field("city", value)}/><Field label="Quận / Huyện *" name="district" value={receiver.district} onChange={value => field("district", value)}/><Field label="Phường / Xã *" name="ward" value={receiver.ward} onChange={value => field("ward", value)}/></div>
         <Field label="Địa chỉ chi tiết *" name="address" className="mt-4" value={receiver.address} onChange={value => field("address", value)}/><label className="mt-4 block"><span className="text-sm font-semibold">Ghi chú đơn hàng</span><textarea name="note" className="mt-1 w-full rounded-lg border p-3" rows={3}/></label><label className="mt-4 flex gap-2"><input type="checkbox" name="installation"/> Tôi cần hỗ trợ lắp đặt</label>
-        <h2 className="mt-7 text-xl font-bold">Phương thức thanh toán</h2>{Object.values(paymentMethods).map(method => { const needsBank = method !== paymentMethods.PAY_AT_STORE; const disabled = needsBank && !bankTransferAvailable; return <label className={`mt-3 flex gap-3 rounded-lg border p-4 ${paymentMethod === method ? "border-red-500 bg-red-50" : ""} ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`} key={method}><input required type="radio" name="paymentMethod" value={method} checked={paymentMethod === method} disabled={disabled} onChange={() => setPaymentMethod(method)}/><span><b>{paymentMethodLabels[method]}</b>{method === paymentMethods.COD && <small className="mt-1 block text-gray-600">Cọc trước 200.000đ để giữ đơn và chi phí vận chuyển; phần còn lại trả khi nhận hàng.</small>}{method === paymentMethods.BANK_TRANSFER && <small className="mt-1 block text-gray-600">Thanh toán toàn bộ đơn qua mã VietQR.</small>}{disabled && <small className="mt-1 block text-red-700">Tạm chưa khả dụng — cửa hàng chưa cấu hình tài khoản nhận tiền.</small>}</span></label>})}
+        <h2 className="mt-7 text-xl font-bold">Phương thức thanh toán</h2>{Object.values(paymentMethods).map(method => { const needsBank = method !== paymentMethods.PAY_AT_STORE; const disabled = needsBank && !bankTransferAvailable; return <label className={`mt-3 flex gap-3 rounded-lg border p-3.5 sm:p-4 ${paymentMethod === method ? "border-red-500 bg-red-50" : ""} ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`} key={method}><input className="mt-1 shrink-0" required type="radio" name="paymentMethod" value={method} checked={paymentMethod === method} disabled={disabled} onChange={() => setPaymentMethod(method)}/><span className="min-w-0"><b>{paymentMethodLabels[method]}</b>{method === paymentMethods.COD && <small className="mt-1 block text-gray-600">Cọc trước 200.000đ để giữ đơn và chi phí vận chuyển; phần còn lại trả khi nhận hàng.</small>}{method === paymentMethods.BANK_TRANSFER && <small className="mt-1 block text-gray-600">Thanh toán toàn bộ đơn qua mã VietQR.</small>}{disabled && <small className="mt-1 block text-red-700">Tạm chưa khả dụng — cửa hàng chưa cấu hình tài khoản nhận tiền.</small>}</span></label>})}
       </section>
-      <aside className="card h-fit p-5"><h2 className="text-xl font-bold">Đơn hàng ({items.length})</h2>{items.map(item => <div className="flex justify-between border-b py-3 text-sm" key={item.product.id}><span>{item.product.name} × {item.quantity}</span><b>{money(item.product.salePrice * item.quantity)}</b></div>)}<div className="mt-5 flex justify-between text-xl"><b>Tổng tiền</b><strong className="text-red-600">{money(total)}</strong></div>{state.message && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.message}</p>}<button disabled={!items.length || pending} className="btn mt-5 w-full bg-red-600 text-white disabled:opacity-50">{pending ? "Đang tạo đơn..." : "Đặt hàng"}</button><p className="mt-3 text-xs text-gray-500">Bằng việc đặt hàng, bạn đồng ý với chính sách mua hàng của Điện máy Hinh.</p></aside>
+      <aside className="card h-fit p-4 sm:p-5"><h2 className="text-xl font-bold">Đơn hàng ({items.length})</h2>{items.map(item => <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b py-3 text-sm" key={item.product.id}><span className="min-w-0 break-words">{item.product.name} × {item.quantity}</span><b className="whitespace-nowrap">{money(item.product.salePrice * item.quantity)}</b></div>)}<div className="mt-5 flex flex-wrap items-baseline justify-between gap-2 text-lg sm:text-xl"><b>Tổng tiền</b><strong className="text-red-600">{money(total)}</strong></div>{state.message && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{state.message}</p>}<button disabled={!items.length || pending} className="btn mt-5 w-full bg-red-600 text-white disabled:opacity-50">{pending ? "Đang tạo đơn..." : "Đặt hàng"}</button><p className="mt-3 text-xs text-gray-500">Bằng việc đặt hàng, bạn đồng ý với chính sách mua hàng của Điện máy Hinh.</p></aside>
     </form>
   </main>;
 }
@@ -59,23 +59,23 @@ export default function CheckoutForm({ user, addresses, bankTransferAvailable }:
 function OrderSuccess({ state, paymentConfirmed, signedIn }: { state: CheckoutState; paymentConfirmed: boolean; signedIn: boolean }) {
   const code = state.code!;
   return (
-    <main className="container py-10 sm:py-14">
+    <main className="container py-5 sm:py-14">
       <article className="card mx-auto max-w-2xl overflow-hidden shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
-        <header className="border-b border-zinc-100 px-6 py-8 text-center sm:px-10">
-          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-zinc-950 text-white shadow-lg shadow-zinc-950/15">
-            <Check aria-hidden="true" size={34} strokeWidth={2.5} />
+        <header className="border-b border-zinc-100 px-4 py-6 text-center sm:px-10 sm:py-8">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-zinc-950 text-white shadow-lg shadow-zinc-950/15 sm:size-16">
+            <Check aria-hidden="true" size={30} strokeWidth={2.5} />
           </div>
           <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Đặt hàng thành công</p>
-          <h1 className="mt-2 text-2xl font-black text-zinc-950 sm:text-3xl">Cảm ơn bạn đã đặt hàng</h1>
-          <div className="mx-auto mt-5 w-fit rounded-xl border border-zinc-200 bg-zinc-50 px-5 py-3">
+          <h1 className="mt-2 text-xl font-black text-zinc-950 sm:text-3xl">Cảm ơn bạn đã đặt hàng</h1>
+          <div className="mx-auto mt-5 w-full max-w-sm rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 sm:px-5">
             <span className="block text-xs font-medium text-zinc-500">Mã đơn hàng</span>
-            <strong className="mt-0.5 block text-xl tracking-wide text-zinc-950 sm:text-2xl">{code}</strong>
+            <strong className="mt-0.5 block break-all text-lg tracking-wide text-zinc-950 min-[380px]:text-xl sm:text-2xl">{code}</strong>
           </div>
         </header>
 
-        <div className="px-5 py-6 sm:px-10 sm:py-8">
+        <div className="px-3 py-4 min-[380px]:px-5 min-[380px]:py-6 sm:px-10 sm:py-8">
           {state.paymentRequired ? paymentConfirmed ? (
-            <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 text-center sm:p-7">
+            <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-center sm:p-7">
               <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-600 text-white">
                 <BadgeCheck aria-hidden="true" size={28} strokeWidth={2.25} />
               </div>
@@ -84,21 +84,21 @@ function OrderSuccess({ state, paymentConfirmed, signedIn }: { state: CheckoutSt
                 Hệ thống đã ghi nhận <strong>{money(state.paymentRequired)}</strong> cho đơn hàng của bạn.
               </p>
               {state.paymentMethod === paymentMethods.COD && (
-                <div className="mx-auto mt-5 flex max-w-md items-center justify-between gap-4 rounded-xl bg-white px-4 py-3 text-left text-sm shadow-sm ring-1 ring-emerald-100">
+                <div className="mx-auto mt-5 grid max-w-md gap-1 rounded-xl bg-white px-4 py-3 text-center text-sm shadow-sm ring-1 ring-emerald-100 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:text-left">
                   <span className="text-zinc-600">Thanh toán khi nhận hàng</span>
-                  <strong className="whitespace-nowrap text-zinc-950">{money(state.remainingOnDelivery ?? 0)}</strong>
+                  <strong className="text-base text-zinc-950 sm:whitespace-nowrap">{money(state.remainingOnDelivery ?? 0)}</strong>
                 </div>
               )}
             </section>
           ) : (
-            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center sm:p-6">
-              <h2 className="text-xl font-black text-amber-950">Hoàn tất thanh toán {money(state.paymentRequired)}</h2>
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center sm:p-6">
+              <h2 className="text-lg font-black text-amber-950 sm:text-xl">Hoàn tất thanh toán <span className="whitespace-nowrap">{money(state.paymentRequired)}</span></h2>
               <p className="mt-2 text-sm leading-6 text-amber-900">Quét mã QR và giữ nguyên số tiền cùng nội dung chuyển khoản. Trang sẽ tự cập nhật khi giao dịch được ghi nhận.</p>
               {state.qrUrl && <img src={state.qrUrl} alt={`Mã QR thanh toán đơn ${code}`} className="mx-auto mt-4 w-full max-w-72 rounded-xl bg-white p-2 shadow-sm"/>}
-              <dl className="mx-auto mt-4 grid max-w-sm gap-2 rounded-xl bg-white p-4 text-left text-sm">
-                <div className="flex justify-between gap-3"><dt className="text-zinc-500">Số tài khoản</dt><dd className="font-bold">{state.bank?.accountNo}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-zinc-500">Chủ tài khoản</dt><dd className="font-bold">{state.bank?.accountName}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-zinc-500">Nội dung</dt><dd className="font-black text-red-700">{code.replaceAll("-", "")}</dd></div>
+              <dl className="mx-auto mt-4 grid max-w-sm gap-3 rounded-xl bg-white p-3 text-left text-sm sm:p-4">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.45fr)] gap-3"><dt className="text-zinc-500">Số tài khoản</dt><dd className="break-all text-right font-bold">{state.bank?.accountNo}</dd></div>
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.45fr)] gap-3"><dt className="text-zinc-500">Chủ tài khoản</dt><dd className="break-words text-right font-bold">{state.bank?.accountName}</dd></div>
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.45fr)] gap-3"><dt className="text-zinc-500">Nội dung</dt><dd className="break-all text-right font-black text-red-700">{code.replaceAll("-", "")}</dd></div>
               </dl>
               {state.paymentMethod === paymentMethods.COD && <p className="mt-4 text-sm font-semibold text-amber-950">Đây là tiền cọc vận chuyển. Còn lại {money(state.remainingOnDelivery ?? 0)} thanh toán khi nhận hàng.</p>}
               <p className="mt-4 text-xs font-semibold text-amber-800">Đang chờ xác nhận giao dịch…</p>
