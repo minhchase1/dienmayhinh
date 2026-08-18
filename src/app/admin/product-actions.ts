@@ -1,12 +1,11 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { deleteProductImages, uploadProductImage } from "@/lib/cloudinary";
 import { prisma } from "@/lib/prisma";
 
 export type ProductActionState = { success?: boolean; message?: string; errors?: Record<string, string[]> };
@@ -46,33 +45,24 @@ function parseSpecifications(value: string) {
   }).filter((item): item is { name: string; value: string } => Boolean(item));
 }
 
-const allowedImages: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/avif": ".avif" };
+const allowedImages = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
 
 async function saveImages(files: File[]) {
   const validFiles = files.filter((file) => file.size > 0);
   if (!validFiles.length) throw new Error("Vui lòng tải lên ít nhất một hình ảnh sản phẩm.");
   if (validFiles.length > 6) throw new Error("Mỗi sản phẩm được tải tối đa 6 hình ảnh.");
-  const uploadDirectory = path.join(process.cwd(), "public", "uploads", "products");
-  await mkdir(uploadDirectory, { recursive: true });
-  const saved: { diskPath: string; url: string }[] = [];
-  for (const file of validFiles) {
-    const extension = allowedImages[file.type];
-    if (!extension) throw new Error("Ảnh chỉ hỗ trợ JPG, PNG, WebP hoặc AVIF.");
-    if (file.size > 4 * 1024 * 1024) throw new Error(`Ảnh “${file.name}” vượt quá giới hạn 4 MB.`);
-    const fileName = `${randomUUID()}${extension}`;
-    const diskPath = path.join(uploadDirectory, fileName);
-    await writeFile(diskPath, Buffer.from(await file.arrayBuffer()), { flag: "wx" });
-    saved.push({ diskPath, url: `/uploads/products/${fileName}` });
+  const saved: { publicId: string; url: string }[] = [];
+  try {
+    for (const file of validFiles) {
+      if (!allowedImages.has(file.type)) throw new Error("Ảnh chỉ hỗ trợ JPG, PNG, WebP hoặc AVIF.");
+      if (file.size > 4 * 1024 * 1024) throw new Error(`Ảnh “${file.name}” vượt quá giới hạn 4 MB.`);
+      saved.push(await uploadProductImage(Buffer.from(await file.arrayBuffer()), randomUUID()));
+    }
+    return saved;
+  } catch (error) {
+    await deleteProductImages(saved.map((image) => image.url)).catch(() => undefined);
+    throw error;
   }
-  return saved;
-}
-
-async function deleteLocalImages(urls: string[]) {
-  const uploadRoot = path.resolve(process.cwd(), "public", "uploads", "products");
-  await Promise.all(urls.filter((url) => url.startsWith("/uploads/products/")).map(async (url) => {
-    const diskPath = path.resolve(process.cwd(), "public", url.replace(/^\//, ""));
-    if (path.dirname(diskPath) === uploadRoot) await unlink(diskPath).catch(() => undefined);
-  }));
 }
 
 function parseProductForm(formData: FormData) {
@@ -85,7 +75,7 @@ function parseProductForm(formData: FormData) {
 }
 
 export async function createProduct(_state: ProductActionState, formData: FormData): Promise<ProductActionState> {
-  let savedImages: { diskPath: string; url: string }[] = [];
+  let savedImages: { publicId: string; url: string }[] = [];
   try {
     const admin = await requireAdmin();
     const parsed = parseProductForm(formData);
@@ -110,7 +100,7 @@ export async function createProduct(_state: ProductActionState, formData: FormDa
     revalidatePath("/admin"); revalidatePath(`/danh-muc/${product.categorySlug}`); revalidatePath(`/san-pham/${product.slug}`); revalidatePath("/");
     return { success: true, message: "Đã đăng sản phẩm thành công." };
   } catch (error) {
-    await Promise.all(savedImages.map((image) => unlink(image.diskPath).catch(() => undefined)));
+    await deleteProductImages(savedImages.map((image) => image.url)).catch(() => undefined);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { success: false, message: "Đường dẫn sản phẩm hoặc mã SKU đã được sử dụng." };
     console.error("Create product failed:", error);
     return { success: false, message: error instanceof Error ? error.message : "Không thể đăng sản phẩm." };
@@ -118,7 +108,7 @@ export async function createProduct(_state: ProductActionState, formData: FormDa
 }
 
 export async function updateProduct(id: string, _state: ProductActionState, formData: FormData): Promise<ProductActionState> {
-  let newImages: { diskPath: string; url: string }[] = [];
+  let newImages: { publicId: string; url: string }[] = [];
   try {
     const admin = await requireAdmin();
     const parsed = parseProductForm(formData);
@@ -144,11 +134,13 @@ export async function updateProduct(id: string, _state: ProductActionState, form
       if (data.stock !== current.stock) await tx.inventoryMovement.create({ data: { productId: id, actorId: admin.id, type: "MANUAL_ADJUSTMENT", quantity: data.stock - current.stock, stockAfter: data.stock, note: "Điều chỉnh tồn kho trong quản trị sản phẩm" } });
       return { product, categorySlug: category.slug };
     });
-    if (newImages.length) await deleteLocalImages(current.images.map((image) => image.url));
+    if (newImages.length) {
+      await deleteProductImages(current.images.map((image) => image.url)).catch(error => console.error("Delete replaced Cloudinary images failed:", error));
+    }
     revalidatePath("/admin"); revalidatePath(`/danh-muc/${current.category.slug}`); revalidatePath(`/danh-muc/${result.categorySlug}`); revalidatePath(`/san-pham/${current.slug}`); revalidatePath(`/san-pham/${result.product.slug}`); revalidatePath("/");
     return { success: true, message: "Đã cập nhật sản phẩm." };
   } catch (error) {
-    await Promise.all(newImages.map((image) => unlink(image.diskPath).catch(() => undefined)));
+    await deleteProductImages(newImages.map((image) => image.url)).catch(() => undefined);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { success: false, message: "Đường dẫn sản phẩm hoặc mã SKU đã được sử dụng." };
     console.error("Update product failed:", error);
     return { success: false, message: error instanceof Error ? error.message : "Không thể cập nhật sản phẩm." };
@@ -163,7 +155,7 @@ export async function deleteProduct(id: string, _state: ProductActionState, _for
     const product = await prisma.product.findUnique({ where: { id }, select: { slug: true, category: { select: { slug: true } }, images: { select: { url: true } } } });
     if (!product) return { success: false, message: "Sản phẩm không còn tồn tại." };
     await prisma.product.delete({ where: { id } });
-    await deleteLocalImages(product.images.map((image) => image.url));
+    await deleteProductImages(product.images.map((image) => image.url)).catch(error => console.error("Delete Cloudinary product images failed:", error));
     revalidatePath("/admin"); revalidatePath(`/danh-muc/${product.category.slug}`); revalidatePath(`/san-pham/${product.slug}`); revalidatePath("/");
     return { success: true, message: "Đã xóa sản phẩm." };
   } catch (error) {
