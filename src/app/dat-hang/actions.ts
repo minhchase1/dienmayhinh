@@ -1,13 +1,24 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { bankTransferConfig, paymentMethods, requiredPrepayment, vietQrUrl } from "@/lib/payments";
 
-export type CheckoutState = { success?: boolean; code?: string; message?: string };
+export type CheckoutState = {
+  success?: boolean;
+  code?: string;
+  message?: string;
+  paymentMethod?: string;
+  paymentRequired?: number;
+  remainingOnDelivery?: number;
+  qrUrl?: string;
+  bank?: { accountNo: string; accountName: string };
+  paymentStatusToken?: string;
+};
 
 const checkoutSchema = z.object({
   name: z.string().trim().min(2),
@@ -18,13 +29,25 @@ const checkoutSchema = z.object({
   ward: z.string().trim().min(2),
   address: z.string().trim().min(3),
   note: z.string().trim().max(1000),
-  paymentMethod: z.string().trim().min(1),
+  paymentMethod: z.enum([paymentMethods.COD, paymentMethods.BANK_TRANSFER, paymentMethods.PAY_AT_STORE]),
   installation: z.boolean(),
   items: z.array(z.object({ productId: z.string().min(1), quantity: z.number().int().min(1).max(99) })).min(1),
 });
 
 function orderCode() {
   return `DMH-${randomBytes(6).toString("hex").toUpperCase()}`;
+}
+
+function paymentStatusToken(code: string) {
+  return createHmac("sha256", process.env.AUTH_SECRET ?? "").update(`payment:${code}`).digest("hex");
+}
+
+export async function checkPaymentStatus(code: string, token: string) {
+  if (!process.env.AUTH_SECRET || !/^DMH-[A-F0-9]{12}$/.test(code) || !/^[a-f0-9]{64}$/.test(token)) return { paid: false };
+  const expected = paymentStatusToken(code);
+  if (!timingSafeEqual(Buffer.from(token), Buffer.from(expected))) return { paid: false };
+  const order = await prisma.order.findUnique({ where: { code }, select: { paymentStatus: true, paidAmount: true } });
+  return { paid: order?.paymentStatus === "PAID" || order?.paymentStatus === "PARTIALLY_PAID", paidAmount: Number(order?.paidAmount ?? 0) };
 }
 
 export async function createOrder(_state: CheckoutState, formData: FormData): Promise<CheckoutState> {
@@ -43,6 +66,9 @@ export async function createOrder(_state: CheckoutState, formData: FormData): Pr
     items: rawItems,
   });
   if (!parsed.success) return { success: false, message: "Vui lòng nhập đầy đủ và kiểm tra lại thông tin nhận hàng." };
+  if (parsed.data.paymentMethod !== paymentMethods.PAY_AT_STORE && !bankTransferConfig()) {
+    return { success: false, message: "Cửa hàng chưa cấu hình tài khoản nhận tiền cọc. Vui lòng chọn thanh toán tại cửa hàng hoặc gọi hotline." };
+  }
 
   try {
     const user = await getCurrentUser();
@@ -52,7 +78,7 @@ export async function createOrder(_state: CheckoutState, formData: FormData): Pr
     if (requestedItems.some(item => item.quantity > 99)) return { success: false, message: "Số lượng của một sản phẩm không được vượt quá 99." };
     const fullAddress = `${parsed.data.address}, ${parsed.data.ward}, ${parsed.data.district}, ${parsed.data.city}`;
 
-    const code = await prisma.$transaction(async tx => {
+    const result = await prisma.$transaction(async tx => {
       const products = await tx.product.findMany({
         where: { id: { in: requestedItems.map(item => item.productId) }, visible: true },
         select: { id: true, name: true, salePrice: true, price: true, stock: true },
@@ -61,18 +87,21 @@ export async function createOrder(_state: CheckoutState, formData: FormData): Pr
       const byId = new Map(products.map(product => [product.id, product]));
       const items = requestedItems.map(item => ({ ...item, product: byId.get(item.productId)! }));
       const total = items.reduce((sum, item) => sum + Number(item.product.salePrice ?? item.product.price) * item.quantity, 0);
+      const paymentRequired = requiredPrepayment(parsed.data.paymentMethod, total);
 
       const existingCustomer = await tx.customer.findFirst({ where: { phone: parsed.data.phone }, select: { id: true } });
       const customer = existingCustomer
         ? await tx.customer.update({ where: { id: existingCustomer.id }, data: { name: parsed.data.name, email: parsed.data.email || null } })
         : await tx.customer.create({ data: { name: parsed.data.name, phone: parsed.data.phone, email: parsed.data.email || null } });
       const code = orderCode();
+      const paymentReference = paymentRequired > 0 ? code.replace(/-/g, "") : null;
       const order = await tx.order.create({ data: {
         code, customerId: customer.id, userId: user?.id, total, address: fullAddress,
         note: parsed.data.note || null, paymentMethod: parsed.data.paymentMethod,
+        paymentRequired, paymentReference,
         installation: parsed.data.installation,
         items: { create: items.map(item => ({ productId: item.product.id, productName: item.product.name, quantity: item.quantity, unitPrice: item.product.salePrice ?? item.product.price })) },
-        statusEvents: { create: { toStatus: "PENDING", actorId: user?.id, note: "Đơn hàng được tạo và giữ tồn kho." } },
+        statusEvents: { create: { toStatus: "PENDING", actorId: user?.id, note: paymentRequired > 0 ? `Đơn hàng được tạo, giữ tồn kho và chờ thanh toán ${paymentRequired.toLocaleString("vi-VN")}đ.` : "Đơn hàng được tạo và giữ tồn kho." } },
       } });
 
       for (const item of items) {
@@ -97,10 +126,20 @@ export async function createOrder(_state: CheckoutState, formData: FormData): Pr
           message: `Khách hàng ${parsed.data.name} vừa đặt đơn ${code}. Nhấn để xem và xác nhận đơn hàng.`,
         })),
       });
-      return code;
+      return { code, total, paymentRequired, paymentReference };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     revalidatePath("/", "layout");
-    return { success: true, code };
+    const bank = bankTransferConfig();
+    return {
+      success: true,
+      code: result.code,
+      paymentMethod: parsed.data.paymentMethod,
+      paymentRequired: result.paymentRequired,
+      remainingOnDelivery: parsed.data.paymentMethod === paymentMethods.COD ? result.total - result.paymentRequired : 0,
+      qrUrl: result.paymentReference ? vietQrUrl(result.paymentRequired, result.paymentReference) ?? undefined : undefined,
+      bank: bank ? { accountNo: bank.accountNo, accountName: bank.accountName } : undefined,
+      paymentStatusToken: paymentStatusToken(result.code),
+    };
   } catch (error) {
     if (error instanceof Error && error.message === "PRODUCT_UNAVAILABLE") return { success: false, message: "Một số sản phẩm không còn bán. Vui lòng cập nhật lại giỏ hàng." };
     if (error instanceof Error && error.message === "INSUFFICIENT_STOCK") return { success: false, message: "Một sản phẩm vừa hết hoặc không còn đủ số lượng. Vui lòng cập nhật lại giỏ hàng." };

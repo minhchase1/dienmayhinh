@@ -39,6 +39,23 @@ Luôn sao lưu database trước khi chạy migration production. Dùng một t�
 
 Vòng đời hợp lệ: `PENDING → CONFIRMED → PREPARING → SHIPPING → COMPLETED`. Admin có thể hủy đơn chưa hoàn tất và bắt buộc nhập lý do.
 
+## Thanh toán và cọc COD
+
+- COD yêu cầu cọc trước `200.000đ` (hoặc toàn bộ giá trị nếu đơn dưới 200.000đ); phần còn lại thu khi giao.
+- Chuyển khoản ngân hàng yêu cầu thanh toán toàn bộ; thanh toán tại cửa hàng không yêu cầu trả trước.
+- Trang hoàn tất đơn sinh VietQR đúng số tiền và nội dung đối soát. Admin kiểm tra tài khoản ngân hàng rồi xác nhận đã nhận tiền; đơn cần trả trước chưa nhận tiền không thể chuyển sang `CONFIRMED`.
+- Khai báo `BANK_ID`, `BANK_ACCOUNT_NO`, `BANK_ACCOUNT_NAME` trong môi trường production. Khi thiếu cấu hình, checkout tự khóa COD và chuyển khoản để không nhận một đơn không thể thanh toán.
+
+### Xác nhận chuyển khoản tự động bằng SePay
+
+1. Chạy migration bằng `npm run db:deploy`.
+2. Khai báo `SEPAY_WEBHOOK_API_KEY` và `SEPAY_WEBHOOK_ACCOUNT_NO`. API key này là khóa riêng được cấu hình ở bước Bảo mật của webhook, không phải API token tài khoản SePay.
+3. Trên SePay, tạo webhook nhận **Tiền vào**, định dạng **JSON**, URL `https://<domain>/api/webhooks/sepay`, bật tự động gửi lại và chọn xác thực **API Key**.
+4. Cấu hình mã thanh toán có tiền tố `DMH`, phần sau gồm 12 ký tự chữ/số. Endpoint vẫn có thể tìm mã trong nội dung giao dịch nếu trường `code` chưa được SePay tách riêng.
+5. Ở Test mode, đặt `SEPAY_WEBHOOK_ACCOUNT_NO` bằng số tài khoản giả lập hiển thị trong payload rồi dùng **Mô phỏng giao dịch**. Khi chuyển sang Live, đổi biến này thành đúng số tài khoản thật.
+
+Webhook chỉ nhận tiền vào đúng tài khoản, lưu ID giao dịch để chống cộng tiền trùng và cộng dồn các lần chuyển thiếu. Đủ tiền cọc/toàn bộ tiền, trạng thái thanh toán tự đổi sang `PARTIALLY_PAID`/`PAID`; trạng thái xử lý đơn hàng vẫn do admin quản lý.
+
 ## Bảo mật tra cứu
 
 Khách chưa đăng nhập phải nhập đúng cả mã đơn hàng và số điện thoại. Người đăng nhập có thể mở bằng mã đơn nếu đơn thuộc tài khoản của họ. Không hỗ trợ liệt kê toàn bộ đơn chỉ từ một số điện thoại.

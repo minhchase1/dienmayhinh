@@ -1,10 +1,11 @@
 "use server";
 
-import { OrderStatus, Prisma } from "@prisma/client";
+import { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { paymentMethods } from "@/lib/payments";
 
 export type OrderActionState = { success?: boolean; message?: string };
 
@@ -31,14 +32,15 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, _s
     await prisma.$transaction(async tx => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        select: { code: true, status: true, userId: true, items: { select: { productId: true, quantity: true } } },
+        select: { code: true, status: true, userId: true, total: true, paymentMethod: true, paymentStatus: true, paymentRequired: true, items: { select: { productId: true, quantity: true } } },
       });
       if (!order) throw new Error("ORDER_NOT_FOUND");
       if (!transitions[order.status].includes(status)) throw new Error("INVALID_TRANSITION");
+      if (status === OrderStatus.CONFIRMED && order.paymentMethod !== paymentMethods.PAY_AT_STORE && Number(order.paymentRequired) > 0 && order.paymentStatus === PaymentStatus.PENDING) throw new Error("PAYMENT_REQUIRED");
 
       const changed = await tx.order.updateMany({
         where: { id: orderId, status: order.status },
-        data: { status, ...(status === OrderStatus.CANCELLED ? { cancelledAt: new Date(), cancellationReason: parsed.data.reason } : {}) },
+        data: { status, ...(status === OrderStatus.CANCELLED ? { cancelledAt: new Date(), cancellationReason: parsed.data.reason } : {}), ...(status === OrderStatus.COMPLETED ? { paidAmount: order.total, paymentStatus: PaymentStatus.PAID, paidAt: new Date() } : {}) },
       });
       if (changed.count !== 1) throw new Error("ORDER_CHANGED");
 
@@ -62,9 +64,37 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus, _s
   } catch (error) {
     if (error instanceof Error && error.message === "ORDER_NOT_FOUND") return { success: false, message: "Đơn hàng không còn tồn tại." };
     if (error instanceof Error && error.message === "INVALID_TRANSITION") return { success: false, message: "Không thể chuyển đơn sang trạng thái này." };
+    if (error instanceof Error && error.message === "PAYMENT_REQUIRED") return { success: false, message: "Chưa thể xác nhận: đơn này chưa nhận đủ tiền cọc/thanh toán." };
     if (error instanceof Error && error.message === "ORDER_CHANGED") return { success: false, message: "Đơn vừa được người khác cập nhật. Vui lòng tải lại trang." };
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return { success: false, message: "Dữ liệu vừa thay đổi. Vui lòng thử lại." };
     console.error("Update order status failed:", error);
     return { success: false, message: "Không thể cập nhật đơn hàng. Vui lòng thử lại." };
+  }
+}
+
+export async function confirmOrderPayment(orderId: string, _state: OrderActionState): Promise<OrderActionState> {
+  void _state;
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== "ADMIN") return { success: false, message: "Bạn không có quyền xác nhận thanh toán." };
+  const parsed = z.string().cuid().safeParse(orderId);
+  if (!parsed.success) return { success: false, message: "Đơn hàng không hợp lệ." };
+  try {
+    await prisma.$transaction(async tx => {
+      const order = await tx.order.findUnique({ where: { id: orderId }, select: { code: true, total: true, paymentRequired: true, paymentStatus: true, userId: true } });
+      if (!order) throw new Error("ORDER_NOT_FOUND");
+      if (order.paymentStatus !== PaymentStatus.PENDING || Number(order.paymentRequired) <= 0) throw new Error("PAYMENT_CHANGED");
+      const required = Number(order.paymentRequired);
+      const status = required >= Number(order.total) ? PaymentStatus.PAID : PaymentStatus.PARTIALLY_PAID;
+      const changed = await tx.order.updateMany({ where: { id: orderId, paymentStatus: PaymentStatus.PENDING }, data: { paidAmount: order.paymentRequired, paymentStatus: status, paidAt: new Date() } });
+      if (changed.count !== 1) throw new Error("PAYMENT_CHANGED");
+      if (order.userId) await tx.notification.create({ data: { userId: order.userId, orderId, title: "Đã nhận thanh toán", message: `Cửa hàng đã nhận ${required.toLocaleString("vi-VN")}đ cho đơn ${order.code}.` } });
+    });
+    revalidatePath("/admin"); revalidatePath("/tra-cuu"); revalidatePath("/tai-khoan");
+    return { success: true, message: "Đã xác nhận nhận tiền. Đơn hàng có thể được xác nhận xử lý." };
+  } catch (error) {
+    if (error instanceof Error && error.message === "ORDER_NOT_FOUND") return { success: false, message: "Đơn hàng không còn tồn tại." };
+    if (error instanceof Error && error.message === "PAYMENT_CHANGED") return { success: false, message: "Thanh toán đã được cập nhật trước đó. Vui lòng tải lại trang." };
+    console.error("Confirm payment failed:", error);
+    return { success: false, message: "Không thể xác nhận thanh toán. Vui lòng thử lại." };
   }
 }

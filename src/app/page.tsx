@@ -61,7 +61,7 @@ export default async function Home() {
                 fill
                 priority
                 sizes="(max-width: 768px) 100vw, 55vw"
-                className="object-cover"
+                className="origin-left scale-[1.035] object-cover"
               />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#09090b]/95 to-transparent pt-20 pb-5 px-6">
                 <b className="text-lg md:text-xl">
