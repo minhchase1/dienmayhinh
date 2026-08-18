@@ -113,8 +113,8 @@ function OrderSuccess({ state, paymentConfirmed, signedIn }: { state: CheckoutSt
           )}
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {paymentConfirmed && <Link href="/" className="btn bg-red-600 text-white"><ShoppingBag aria-hidden="true" size={18}/>Tiếp tục mua sắm</Link>}
-            {signedIn && <Link href="/tai-khoan" className="btn btn-primary"><History aria-hidden="true" size={18}/>Lịch sử đơn hàng</Link>}
+            {paymentConfirmed && <Link href="/" className={`btn bg-red-600 text-white ${signedIn ? "" : "sm:col-span-2"}`}><ShoppingBag aria-hidden="true" size={18}/>Tiếp tục mua sắm</Link>}
+            {signedIn && <Link href="/tai-khoan" className={`btn btn-primary ${paymentConfirmed ? "" : "sm:col-span-2"}`}><History aria-hidden="true" size={18}/>Lịch sử đơn hàng</Link>}
             <a href="tel:0914845274" className="btn border border-zinc-200 bg-white text-zinc-800 sm:col-span-2"><Phone aria-hidden="true" size={18}/>Hỗ trợ: 0914 845 274</a>
           </div>
         </div>
