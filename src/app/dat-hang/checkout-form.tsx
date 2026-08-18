@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- VietQR is generated dynamically by the bank/account configuration. */
 
 import Link from "next/link";
-import { BadgeCheck, Check, History, Phone, ShoppingBag } from "lucide-react";
+import { BadgeCheck, Check, Clock3, History, Phone, ShoppingBag } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useCart } from "@/components/cart-provider";
 import { money } from "@/lib/data";
@@ -58,15 +58,20 @@ export default function CheckoutForm({ user, addresses, bankTransferAvailable }:
 
 function OrderSuccess({ state, paymentConfirmed, signedIn }: { state: CheckoutState; paymentConfirmed: boolean; signedIn: boolean }) {
   const code = state.code!;
+  const awaitingPayment = Boolean(state.paymentRequired) && !paymentConfirmed;
   return (
     <main className="container py-5 sm:py-14">
       <article className="card mx-auto max-w-2xl overflow-hidden shadow-[0_18px_55px_rgba(15,23,42,0.08)]">
         <header className="border-b border-zinc-100 px-4 py-6 text-center sm:px-10 sm:py-8">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-zinc-950 text-white shadow-lg shadow-zinc-950/15 sm:size-16">
-            <Check aria-hidden="true" size={30} strokeWidth={2.5} />
+          <div className={`mx-auto flex size-14 items-center justify-center rounded-full text-white shadow-lg sm:size-16 ${awaitingPayment ? "bg-amber-500 shadow-amber-500/20" : "bg-zinc-950 shadow-zinc-950/15"}`}>
+            {awaitingPayment ? <Clock3 aria-hidden="true" size={29} strokeWidth={2.25}/> : <Check aria-hidden="true" size={30} strokeWidth={2.5}/>}
           </div>
-          <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">Đặt hàng thành công</p>
-          <h1 className="mt-2 text-xl font-black text-zinc-950 sm:text-3xl">Cảm ơn bạn đã đặt hàng</h1>
+          <p className={`mt-5 text-xs font-bold uppercase tracking-[0.18em] ${awaitingPayment ? "text-amber-700" : "text-zinc-500"}`}>
+            {awaitingPayment ? "Đơn hàng đang chờ thanh toán" : "Đơn hàng đã được ghi nhận"}
+          </p>
+          <h1 className="mt-2 text-xl font-black text-zinc-950 sm:text-3xl">
+            {awaitingPayment ? "Hoàn tất thanh toán để xác nhận đơn" : "Cảm ơn bạn đã đặt hàng"}
+          </h1>
           <div className="mx-auto mt-5 w-full max-w-sm rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 sm:px-5">
             <span className="block text-xs font-medium text-zinc-500">Mã đơn hàng</span>
             <strong className="mt-0.5 block break-all text-lg tracking-wide text-zinc-950 min-[380px]:text-xl sm:text-2xl">{code}</strong>
