@@ -38,11 +38,11 @@ export const getCurrentUser = cache(async () => {
     where: { tokenHash: hashToken(token) },
     select: {
       expiresAt: true,
-      user: { select: { id: true, name: true, email: true, role: true } },
+      user: { select: { id: true, name: true, email: true, role: true, isBlocked: true } },
     },
   });
 
-  if (!session || session.expiresAt <= new Date()) return null;
+  if (!session || session.expiresAt <= new Date() || session.user.isBlocked) return null;
   return session.user;
 });
 

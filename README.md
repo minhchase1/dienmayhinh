@@ -1,50 +1,65 @@
 # Điện máy Hinh
 
-Website bán hàng điện máy, điện lạnh bằng Next.js, TypeScript và Tailwind CSS. Bản demo có 24 sản phẩm minh họa, giỏ hàng lưu trên trình duyệt và quy trình đặt hàng mô phỏng nên chạy được ngay cả khi chưa cấu hình dịch vụ ngoài.
+Website bán hàng điện máy bằng Next.js 16, TypeScript, PostgreSQL và Prisma. Storefront chỉ hiển thị và nhận đặt các sản phẩm thật đang có trong database.
 
-## Chạy nhanh
+## Chạy local
 
 ```bash
 npm install
+npm run db:setup
 npm run dev
 ```
 
-Mở `http://localhost:3000`. Dashboard mẫu ở `/admin`.
+Sao chép `.env.example` thành `.env` và thay toàn bộ giá trị mẫu trước khi chạy. Dashboard quản trị nằm tại `/admin`.
 
-## Biến môi trường và PostgreSQL
+## Database production
 
-Sao chép `.env.example` thành `.env`, cập nhật `DATABASE_URL` và `AUTH_SECRET`. Tạo database PostgreSQL rồi chạy:
+Các migration được commit trong `prisma/migrations`. Quy trình triển khai:
 
 ```bash
-npx prisma generate
-npx prisma migrate dev --name init
+npm ci
+npm run db:deploy
+npm run db:seed
+npm run build
+npm start
 ```
 
-Schema nằm tại `prisma/schema.prisma`. Dữ liệu giao diện hiện nằm tại `src/lib/data.ts`; khi tích hợp thật, thay lớp dữ liệu này bằng Prisma queries. Mật khẩu quản trị phải được băm bằng bcrypt/argon2, không lưu văn bản thuần. Dùng Auth.js credentials hoặc OAuth và middleware kiểm tra vai trò `ADMIN` cho `/admin`.
+`db:seed` tạo/cập nhật danh mục mặc định. Tài khoản quản trị đầu tiên chỉ được tạo khi có `ADMIN_INITIAL_EMAIL` và `ADMIN_INITIAL_PASSWORD`; mật khẩu phải dài ít nhất 12 ký tự và được băm bằng bcrypt. Sau lần seed đầu, nên xóa các biến mật khẩu khởi tạo khỏi môi trường triển khai.
 
-## Hình ảnh và dịch vụ ngoài
+Luôn sao lưu database trước khi chạy migration production. Dùng một tài khoản PostgreSQL riêng cho ứng dụng, bật SSL theo yêu cầu của nhà cung cấp và chạy `npm run db:deploy` như một bước release duy nhất, không chạy đồng thời trên nhiều instance.
 
-Ảnh demo dùng Unsplash. Khi vận hành, cấu hình Cloudinary bằng các biến trong `.env.example`, lưu URL ảnh vào `ProductImage`. Form đặt hàng hiện mô phỏng phía trình duyệt; production cần API route kiểm tra Zod, lấy lại giá từ database trong transaction, tạo `Order`/`OrderItem`, không tin giá gửi từ client.
+## Đơn hàng và tồn kho
 
-## Kiến trúc
+- Checkout đọc lại sản phẩm, giá và tồn kho từ PostgreSQL.
+- Tồn kho được giữ trong transaction `Serializable` với cập nhật có điều kiện, tránh bán vượt số lượng.
+- Sản phẩm trùng trong payload được gộp trước khi kiểm tra kho.
+- Hủy đơn hoàn kho đúng một lần.
+- Mọi lần giữ, hoàn và điều chỉnh kho được ghi vào `InventoryMovement`.
+- Mọi thay đổi trạng thái đơn được ghi vào `OrderStatusEvent`.
 
-- `src/app`: route storefront, checkout, chính sách và admin.
-- `src/components`: header, footer, product card, cart provider.
-- `src/lib/data.ts`: 24 sản phẩm demo và danh mục.
-- `prisma/schema.prisma`: các model dữ liệu chính.
+Vòng đời hợp lệ: `PENDING → CONFIRMED → PREPARING → SHIPPING → COMPLETED`. Admin có thể hủy đơn chưa hoàn tất và bắt buộc nhập lý do.
 
-Sitemap và robots được tạo bởi `src/app/sitemap.ts` và `robots.ts`. Metadata mặc định nằm trong layout; nên thêm metadata động theo dữ liệu database cho từng sản phẩm khi triển khai.
+## Thanh toán và cọc COD
 
-## Tài khoản quản trị
+- COD yêu cầu cọc trước `200.000đ` (hoặc toàn bộ giá trị nếu đơn dưới 200.000đ); phần còn lại thu khi giao.
+- Chuyển khoản ngân hàng yêu cầu thanh toán toàn bộ; thanh toán tại cửa hàng không yêu cầu trả trước.
+- Trang hoàn tất đơn sinh VietQR đúng số tiền và nội dung đối soát. Admin kiểm tra tài khoản ngân hàng rồi xác nhận đã nhận tiền; đơn cần trả trước chưa nhận tiền không thể chuyển sang `CONFIRMED`.
+- Khai báo `BANK_ID`, `BANK_ACCOUNT_NO`, `BANK_ACCOUNT_NAME` trong môi trường production. Khi thiếu cấu hình, checkout tự khóa COD và chuyển khoản để không nhận một đơn không thể thanh toán.
 
-Sau khi nối Auth.js, tạo script seed dùng mật khẩu lấy từ biến môi trường, băm trước khi lưu. Tuyệt đối không commit mật khẩu hoặc `.env`.
+### Xác nhận chuyển khoản tự động bằng SePay
 
-## Triển khai
+1. Chạy migration bằng `npm run db:deploy`.
+2. Khai báo `SEPAY_WEBHOOK_API_KEY` và `SEPAY_WEBHOOK_ACCOUNT_NO`. API key này là khóa riêng được cấu hình ở bước Bảo mật của webhook, không phải API token tài khoản SePay.
+3. Trên SePay, tạo webhook nhận **Tiền vào**, định dạng **JSON**, URL `https://<domain>/api/webhooks/sepay`, bật tự động gửi lại và chọn xác thực **API Key**.
+4. Cấu hình mã thanh toán có tiền tố `DMH`, phần sau gồm 12 ký tự chữ/số. Endpoint vẫn có thể tìm mã trong nội dung giao dịch nếu trường `code` chưa được SePay tách riêng.
+5. Ở Test mode, đặt `SEPAY_WEBHOOK_ACCOUNT_NO` bằng số tài khoản giả lập hiển thị trong payload rồi dùng **Mô phỏng giao dịch**. Khi chuyển sang Live, đổi biến này thành đúng số tài khoản thật.
 
-1. Đẩy mã nguồn lên GitHub.
-2. Tạo PostgreSQL trên Neon, Supabase hoặc dịch vụ tương đương.
-3. Import dự án vào Vercel, khai báo các biến môi trường.
-4. Chạy migration production bằng `npx prisma migrate deploy`.
-5. Cấu hình domain, Cloudinary và cập nhật `NEXT_PUBLIC_SITE_URL`.
+Webhook chỉ nhận tiền vào đúng tài khoản, lưu ID giao dịch để chống cộng tiền trùng và cộng dồn các lần chuyển thiếu. Đủ tiền cọc/toàn bộ tiền, trạng thái thanh toán tự đổi sang `PARTIALLY_PAID`/`PAID`; trạng thái xử lý đơn hàng vẫn do admin quản lý.
 
-> Tất cả sản phẩm, giá và đánh giá hiện là dữ liệu minh họa. Điện máy Hinh không tự nhận là đại lý chính thức của các thương hiệu được đề cập.
+## Bảo mật tra cứu
+
+Khách chưa đăng nhập phải nhập đúng cả mã đơn hàng và số điện thoại. Người đăng nhập có thể mở bằng mã đơn nếu đơn thuộc tài khoản của họ. Không hỗ trợ liệt kê toàn bộ đơn chỉ từ một số điện thoại.
+
+## Ảnh và triển khai
+
+Ảnh upload hiện lưu trong `public/uploads/products`, phù hợp khi chạy trên máy chủ có ổ đĩa bền vững. Với serverless hoặc nhiều instance, cần chuyển sang Cloudinary/S3 trước khi vận hành. Khai báo `NEXT_PUBLIC_SITE_URL` bằng domain production để sitemap sinh đúng URL.

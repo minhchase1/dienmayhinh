@@ -24,5 +24,6 @@ async function getHeaderCategories() {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [user, categories] = await Promise.all([getCurrentUser(), getHeaderCategories()]);
-  return <html lang="vi"><body className={beVietnamPro.variable}><CartProvider><Header user={user ? { name: user.name, email: user.email, role: user.role } : null} categories={categories}/>{children}<Footer/><Toaster richColors position="top-center"/></CartProvider></body></html>;
+  const notifications = user ? await prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, title: true, message: true, readAt: true, createdAt: true, orderId: true } }) : [];
+  return <html lang="vi"><body className={beVietnamPro.variable}><CartProvider><Header user={user ? { name: user.name, email: user.email, role: user.role } : null} categories={categories} notifications={notifications.map(notification => ({ id: notification.id, title: notification.title, message: notification.message, read: Boolean(notification.readAt), createdAt: notification.createdAt.toISOString(), orderId: notification.orderId }))}/>{children}<Footer/><Toaster richColors position="top-center"/></CartProvider></body></html>;
 }

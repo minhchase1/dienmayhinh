@@ -74,9 +74,13 @@ export async function login(_state: AuthState, formData: FormData): Promise<Auth
   if (!user || !(await compare(result.data.password, user.passwordHash))) {
     return { message: "Email hoặc mật khẩu không chính xác." };
   }
+  if (user.isBlocked) {
+    return { message: "Tài khoản đã bị khóa. Vui lòng liên hệ cửa hàng để được hỗ trợ." };
+  }
 
   await createSession(user.id);
-  redirect("/");
+  const next = String(formData.get("next") ?? "");
+  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
 }
 
 export async function logout() {
