@@ -26,5 +26,5 @@ export async function openOrderNotification(notificationId: string, orderId: str
   if (!notification?.order) redirect("/tra-cuu");
   await prisma.notification.update({ where: { id: notificationId }, data: { readAt: new Date() } });
   revalidatePath("/", "layout");
-  redirect(`/tra-cuu?q=${encodeURIComponent(notification.order.code)}`);
+  redirect(user.role === "ADMIN" ? "/admin/don-hang" : `/tra-cuu?q=${encodeURIComponent(notification.order.code)}`);
 }

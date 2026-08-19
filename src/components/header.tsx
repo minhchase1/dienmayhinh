@@ -92,7 +92,7 @@ export default function Header({ user, categories, notifications }: { user: Head
             <input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full rounded-lg bg-white p-3 text-black" placeholder="Tìm sản phẩm..." />
           </form>
           {!user && <Link className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" href="/dang-nhap"><LogIn size={18} />Đăng nhập / Đăng ký</Link>}
-          {user?.role === "ADMIN" && <Link className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" href="/admin"><LayoutDashboard size={18}/>Quản trị danh mục</Link>}
+          {user?.role === "ADMIN" && <Link className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" href="/admin"><LayoutDashboard size={18}/>Quản trị</Link>}
           {user && user.role !== "ADMIN" && <Link className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" href="/tai-khoan"><UserRound size={18}/>Tài khoản của tôi</Link>}
         </div>
       </header>

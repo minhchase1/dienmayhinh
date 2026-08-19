@@ -1,59 +1,23 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import Link from "next/link";
+import { FolderTree, PackageCheck, PackageOpen, Users } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { initializeDefaultCategories } from "@/lib/categories";
-import CategoryManager from "./category-manager";
-import ProductManager from "./product-manager";
-import OrderManager from "./order-manager";
-import CustomerManager from "./customer-manager";
 
-export const metadata: Metadata = { title: "Quản lý danh mục" };
+export const metadata: Metadata = { title: "Tổng quan quản trị" };
 export const dynamic = "force-dynamic";
 
+const items = [
+  { href: "/admin/don-hang", label: "Quản lý đơn hàng", description: "Xác nhận thanh toán và cập nhật trạng thái đơn.", icon: PackageCheck, key: "orders" },
+  { href: "/admin/khach-hang", label: "Quản lý khách hàng", description: "Tra cứu, khóa và mở khóa tài khoản khách.", icon: Users, key: "customers" },
+  { href: "/admin/san-pham", label: "Quản lý sản phẩm", description: "Thêm, chỉnh sửa, hiển thị và quản lý tồn kho.", icon: PackageOpen, key: "products" },
+  { href: "/admin/danh-muc", label: "Quản lý danh mục", description: "Tổ chức các nhóm sản phẩm của cửa hàng.", icon: FolderTree, key: "categories" },
+] as const;
+
 export default async function AdminPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/dang-nhap?next=/admin");
-  if (user.role !== "ADMIN") redirect("/");
-
-  await initializeDefaultCategories();
-  const [categories, products, orders, customers] = await Promise.all([
-    prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, slug: true, description: true, _count: { select: { products: true } } } }),
-    prisma.product.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, slug: true, sku: true, salePrice: true, price: true, stock: true, visible: true, shortDescription: true, description: true, categoryId: true, category: { select: { name: true } }, brand: { select: { name: true } }, images: { orderBy: { position: "asc" }, select: { url: true } }, specifications: { select: { name: true, value: true } } } }),
-    prisma.order.findMany({
-      where: {
-        OR: [
-          { paymentRequired: { lte: 0 } },
-          { paymentStatus: { not: "PENDING" } },
-        ],
-      },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      select: { id: true, code: true, status: true, total: true, address: true, createdAt: true, paymentMethod: true, paymentStatus: true, paymentRequired: true, paidAmount: true, paymentReference: true, customer: { select: { name: true, phone: true } }, _count: { select: { items: true } } },
-    }),
-    prisma.user.findMany({
-      where: { role: "CUSTOMER" },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, email: true, createdAt: true, isBlocked: true, blockedAt: true, blockedReason: true, _count: { select: { orders: true } } },
-    }),
+  const [orders, customers, products, categories] = await Promise.all([
+    prisma.order.count({ where: { OR: [{ paymentRequired: { lte: 0 } }, { paymentStatus: { not: "PENDING" } }] } }),
+    prisma.user.count({ where: { role: "CUSTOMER" } }), prisma.product.count(), prisma.category.count(),
   ]);
-
-  return (
-    <main className="min-h-[70vh] bg-slate-100 py-8">
-      <div className="container">
-        <div className="mb-7">
-          <p className="text-sm font-semibold text-[#18181b]">HINH ADMIN</p>
-          <h1 className="mt-1 text-3xl font-black">Quản lý cửa hàng</h1>
-          <p className="mt-2 text-gray-500">Theo dõi đơn hàng, sản phẩm và danh mục của cửa hàng.</p>
-        </div>
-        <OrderManager orders={orders.map(order => ({ id: order.id, code: order.code, status: order.status, total: Number(order.total), address: order.address, createdAt: order.createdAt.toISOString(), paymentMethod: order.paymentMethod, paymentStatus: order.paymentStatus, paymentRequired: Number(order.paymentRequired), paidAmount: Number(order.paidAmount), paymentReference: order.paymentReference, customer: order.customer, itemCount: order._count.items }))}/>
-        <CustomerManager customers={customers.map(customer => ({ id: customer.id, name: customer.name, email: customer.email, createdAt: customer.createdAt.toISOString(), isBlocked: customer.isBlocked, blockedAt: customer.blockedAt?.toISOString() ?? null, blockedReason: customer.blockedReason, orderCount: customer._count.orders }))}/>
-        <ProductManager categories={categories.map(({ id, name }) => ({ id, name }))} products={products.map(product => ({ id: product.id, name: product.name, slug: product.slug, sku: product.sku, category: product.category.name, categoryId: product.categoryId, brand: product.brand.name, price: Number(product.price), salePrice: Number(product.salePrice ?? product.price), stock: product.stock, visible: product.visible, shortDescription: product.shortDescription ?? "", description: product.description ?? "", specifications: product.specifications.map(item => `${item.name}: ${item.value}`).join("\n"), images: product.images.map(image => image.url) }))}/>
-        <CategoryManager categories={categories.map((category) => ({
-          ...category,
-          productCount: category._count.products,
-        }))} />
-      </div>
-    </main>
-  );
+  const counts = { orders, customers, products, categories };
+  return <><div className="mb-7"><h1 className="text-3xl font-black">Tổng quan quản trị</h1><p className="mt-2 text-gray-500">Chọn chức năng bạn muốn quản lý.</p></div><div className="grid gap-5 sm:grid-cols-2">{items.map(item => { const Icon = item.icon; return <Link href={item.href} key={item.href} className="card group p-6 transition hover:-translate-y-1 hover:border-zinc-400 hover:shadow-lg"><div className="flex items-start justify-between gap-4"><span className="grid h-12 w-12 place-content-center rounded-xl bg-zinc-100 group-hover:bg-[#18181b] group-hover:text-white"><Icon size={25}/></span><b className="text-2xl">{counts[item.key]}</b></div><h2 className="mt-5 text-xl font-bold">{item.label}</h2><p className="mt-2 text-sm leading-6 text-gray-500">{item.description}</p></Link>; })}</div></>;
 }
