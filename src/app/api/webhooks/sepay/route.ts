@@ -128,13 +128,24 @@ export async function POST(request: Request) {
         },
       });
 
-      if (paymentComplete && order.paymentStatus === PaymentStatus.PENDING && order.userId) {
-        await tx.notification.create({ data: {
-          userId: order.userId,
-          orderId: order.id,
-          title: "Đã nhận thanh toán",
-          message: `Hệ thống đã tự động ghi nhận ${received.toLocaleString("vi-VN")}đ cho đơn ${order.code}.`,
-        } });
+      if (paymentComplete && order.paymentStatus === PaymentStatus.PENDING) {
+        if (order.userId) {
+          await tx.notification.create({ data: {
+            userId: order.userId,
+            orderId: order.id,
+            title: "Đã nhận thanh toán",
+            message: `Hệ thống đã tự động ghi nhận ${received.toLocaleString("vi-VN")}đ cho đơn ${order.code}.`,
+          } });
+        }
+        const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+        if (admins.length) await tx.notification.createMany({
+          data: admins.map(admin => ({
+            userId: admin.id,
+            orderId: order.id,
+            title: "Có đơn hàng mới cần xác nhận",
+            message: `Đơn ${order.code} đã nhận đủ ${required.toLocaleString("vi-VN")}đ và sẵn sàng để xác nhận.`,
+          })),
+        });
       }
       return { kind: "processed" as const, orderCode: order.code, paymentComplete };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -143,6 +154,7 @@ export async function POST(request: Request) {
     revalidatePath("/admin");
     revalidatePath("/tra-cuu");
     revalidatePath("/tai-khoan");
+    revalidatePath("/", "layout");
     return Response.json({ success: true, status: result.kind, orderCode: result.orderCode });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

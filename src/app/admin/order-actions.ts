@@ -88,8 +88,15 @@ export async function confirmOrderPayment(orderId: string, _state: OrderActionSt
       const changed = await tx.order.updateMany({ where: { id: orderId, paymentStatus: PaymentStatus.PENDING }, data: { paidAmount: order.paymentRequired, paymentStatus: status, paidAt: new Date() } });
       if (changed.count !== 1) throw new Error("PAYMENT_CHANGED");
       if (order.userId) await tx.notification.create({ data: { userId: order.userId, orderId, title: "Đã nhận thanh toán", message: `Cửa hàng đã nhận ${required.toLocaleString("vi-VN")}đ cho đơn ${order.code}.` } });
+      const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+      if (admins.length) await tx.notification.createMany({ data: admins.map(user => ({
+        userId: user.id,
+        orderId,
+        title: "Có đơn hàng mới cần xác nhận",
+        message: `Đơn ${order.code} đã nhận đủ ${required.toLocaleString("vi-VN")}đ và sẵn sàng để xác nhận.`,
+      })) });
     });
-    revalidatePath("/admin"); revalidatePath("/tra-cuu"); revalidatePath("/tai-khoan");
+    revalidatePath("/admin"); revalidatePath("/tra-cuu"); revalidatePath("/tai-khoan"); revalidatePath("/", "layout");
     return { success: true, message: "Đã xác nhận nhận tiền. Đơn hàng có thể được xác nhận xử lý." };
   } catch (error) {
     if (error instanceof Error && error.message === "ORDER_NOT_FOUND") return { success: false, message: "Đơn hàng không còn tồn tại." };

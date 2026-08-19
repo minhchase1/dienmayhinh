@@ -117,15 +117,18 @@ export async function createOrder(_state: CheckoutState, formData: FormData): Pr
           note: `Giữ hàng cho đơn ${code}`,
         } });
       }
-      const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
-      if (admins.length) await tx.notification.createMany({
-        data: admins.map(admin => ({
-          userId: admin.id,
-          orderId: order.id,
-          title: "Có đơn hàng mới cần xác nhận",
-          message: `Khách hàng ${parsed.data.name} vừa đặt đơn ${code}. Nhấn để xem và xác nhận đơn hàng.`,
-        })),
-      });
+      // Orders requiring prepayment are only ready for admins after payment is received.
+      if (paymentRequired <= 0) {
+        const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+        if (admins.length) await tx.notification.createMany({
+          data: admins.map(admin => ({
+            userId: admin.id,
+            orderId: order.id,
+            title: "Có đơn hàng mới cần xác nhận",
+            message: `Khách hàng ${parsed.data.name} vừa đặt đơn ${code}. Nhấn để xem và xác nhận đơn hàng.`,
+          })),
+        });
+      }
       return { code, total, paymentRequired, paymentReference };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     revalidatePath("/", "layout");
