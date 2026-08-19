@@ -72,6 +72,13 @@ export async function createOrder(_state: CheckoutState, formData: FormData): Pr
 
   try {
     const user = await getCurrentUser();
+    if (parsed.data.email) {
+      const blockedAccount = await prisma.user.findFirst({
+        where: { email: parsed.data.email.toLowerCase(), isBlocked: true },
+        select: { id: true },
+      });
+      if (blockedAccount) return { success: false, message: "Tài khoản này đã bị khóa. Vui lòng liên hệ cửa hàng để được hỗ trợ." };
+    }
     const quantities = new Map<string, number>();
     for (const item of parsed.data.items) quantities.set(item.productId, (quantities.get(item.productId) ?? 0) + item.quantity);
     const requestedItems = [...quantities].map(([productId, quantity]) => ({ productId, quantity }));

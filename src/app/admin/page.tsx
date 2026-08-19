@@ -6,6 +6,7 @@ import { initializeDefaultCategories } from "@/lib/categories";
 import CategoryManager from "./category-manager";
 import ProductManager from "./product-manager";
 import OrderManager from "./order-manager";
+import CustomerManager from "./customer-manager";
 
 export const metadata: Metadata = { title: "Quản lý danh mục" };
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export default async function AdminPage() {
   if (user.role !== "ADMIN") redirect("/");
 
   await initializeDefaultCategories();
-  const [categories, products, orders] = await Promise.all([
+  const [categories, products, orders, customers] = await Promise.all([
     prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, slug: true, description: true, _count: { select: { products: true } } } }),
     prisma.product.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, name: true, slug: true, sku: true, salePrice: true, price: true, stock: true, visible: true, shortDescription: true, description: true, categoryId: true, category: { select: { name: true } }, brand: { select: { name: true } }, images: { orderBy: { position: "asc" }, select: { url: true } }, specifications: { select: { name: true, value: true } } } }),
     prisma.order.findMany({
@@ -30,6 +31,11 @@ export default async function AdminPage() {
       take: 100,
       select: { id: true, code: true, status: true, total: true, address: true, createdAt: true, paymentMethod: true, paymentStatus: true, paymentRequired: true, paidAmount: true, paymentReference: true, customer: { select: { name: true, phone: true } }, _count: { select: { items: true } } },
     }),
+    prisma.user.findMany({
+      where: { role: "CUSTOMER" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, email: true, createdAt: true, isBlocked: true, blockedAt: true, blockedReason: true, _count: { select: { orders: true } } },
+    }),
   ]);
 
   return (
@@ -41,6 +47,7 @@ export default async function AdminPage() {
           <p className="mt-2 text-gray-500">Theo dõi đơn hàng, sản phẩm và danh mục của cửa hàng.</p>
         </div>
         <OrderManager orders={orders.map(order => ({ id: order.id, code: order.code, status: order.status, total: Number(order.total), address: order.address, createdAt: order.createdAt.toISOString(), paymentMethod: order.paymentMethod, paymentStatus: order.paymentStatus, paymentRequired: Number(order.paymentRequired), paidAmount: Number(order.paidAmount), paymentReference: order.paymentReference, customer: order.customer, itemCount: order._count.items }))}/>
+        <CustomerManager customers={customers.map(customer => ({ id: customer.id, name: customer.name, email: customer.email, createdAt: customer.createdAt.toISOString(), isBlocked: customer.isBlocked, blockedAt: customer.blockedAt?.toISOString() ?? null, blockedReason: customer.blockedReason, orderCount: customer._count.orders }))}/>
         <ProductManager categories={categories.map(({ id, name }) => ({ id, name }))} products={products.map(product => ({ id: product.id, name: product.name, slug: product.slug, sku: product.sku, category: product.category.name, categoryId: product.categoryId, brand: product.brand.name, price: Number(product.price), salePrice: Number(product.salePrice ?? product.price), stock: product.stock, visible: product.visible, shortDescription: product.shortDescription ?? "", description: product.description ?? "", specifications: product.specifications.map(item => `${item.name}: ${item.value}`).join("\n"), images: product.images.map(image => image.url) }))}/>
         <CategoryManager categories={categories.map((category) => ({
           ...category,
